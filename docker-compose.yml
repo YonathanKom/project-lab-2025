@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: shopping-list-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shopping_list_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: shopping-list-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - SQLALCHEMY_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/shopping_list_db
+      - SECRET_KEY=your_secret_key_here
+      - BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend service would be here
+  # For Flutter web frontend, you would typically build it and serve it with nginx
+  # or deploy it to a separate service like Firebase Hosting
+
+volumes:
+  postgres_data:
