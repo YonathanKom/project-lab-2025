@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../utils/routes.dart';
 import '../../utils/validators.dart';
 import '../../widgets/theme_toggle.dart';
@@ -12,116 +14,164 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-
   bool _isFormValid = false;
+  bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _emailController.addListener(_validateForm);
+    // Add listeners to controllers to validate form on changes
+    _usernameController.addListener(_validateForm);
     _passwordController.addListener(_validateForm);
+
+    // Listen for auth status changes
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      authProvider.addListener(() {
+        if (authProvider.status == AuthStatus.authenticated) {
+          Navigator.pushReplacementNamed(context, Routes.home);
+        } else if (authProvider.status == AuthStatus.error && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.errorMessage ?? 'An error occurred'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+          setState(() => _isLoading = false);
+        }
+      });
+    });
   }
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   void _validateForm() {
-    final isEmailValid =
-        Validators.validateEmail(_emailController.text) == null;
-    final isPasswordValid =
-        Validators.validatePassword(_passwordController.text) == null;
+    final usernameValid = _usernameController.text.trim().isNotEmpty;
+    final passwordValid = _passwordController.text.trim().length >= 6;
 
-    setState(() {
-      _isFormValid = isEmailValid && isPasswordValid;
-    });
+    final isValid = usernameValid && passwordValid;
+
+    if (_isFormValid != isValid) {
+      setState(() {
+        _isFormValid = isValid;
+      });
+    }
   }
 
-  void _login() {
-    if (_formKey.currentState!.validate()) {
-      // Login logic would go here
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Processing login...')),
-      );
-    }
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    await authProvider.login(
+      username: _usernameController.text.trim(),
+      password: _passwordController.text,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Login'),
         actions: const [ThemeToggle()],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 24),
-              Text(
-                'Welcome Back',
-                style: Theme.of(context).textTheme.headlineSmall,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-
-              // Email field
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Card(
+            elevation: 4.0,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 16.0),
+                    Icon(
+                      Icons.account_circle,
+                      size: 80.0,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(height: 24.0),
+                    TextFormField(
+                      controller: _usernameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Username',
+                        prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (value) => Validators.validateUsername(value),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 16.0),
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock),
+                        border: const OutlineInputBorder(),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) => Validators.validatePassword(value),
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        if (_isFormValid) _login();
+                      },
+                    ),
+                    const SizedBox(height: 24.0),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50.0,
+                      child: ElevatedButton(
+                        onPressed: _isFormValid && !_isLoading ? _login : null,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 24.0,
+                                height: 24.0,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.0,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('LOGIN'),
+                      ),
+                    ),
+                    const SizedBox(height: 16.0),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pushNamed(context, Routes.register);
+                      },
+                      child: const Text('Don\'t have an account? Register'),
+                    ),
+                  ],
                 ),
-                keyboardType: TextInputType.emailAddress,
-                validator: Validators.validateEmail,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
               ),
-              const SizedBox(height: 16),
-
-              // Password field
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                validator: Validators.validatePassword,
-                autovalidateMode: AutovalidateMode.onUserInteraction,
-              ),
-              const SizedBox(height: 32),
-
-              // Login button
-              ElevatedButton(
-                onPressed: _isFormValid ? _login : null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-                child: const Text(
-                  'LOGIN',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Register link
-              TextButton(
-                onPressed: () {
-                  Navigator.pushNamed(context, Routes.register);
-                },
-                child: const Text('Don\'t have an account? Sign up'),
-              ),
-            ],
+            ),
           ),
         ),
       ),
