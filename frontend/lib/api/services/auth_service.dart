@@ -2,25 +2,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
-  // Base URL for API calls
   final String baseUrl;
 
-  // Constructor
   AuthService({required this.baseUrl});
 
-  // Register a new user
-  Future<Map<String, dynamic>> register({
-    required String username,
-    required String email,
-    required String password,
-    int? householdId,
-  }) async {
+  Future<Map<String, dynamic>> register(
+      {required String username,
+      required String email,
+      required String password,
+      int? householdId}) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/users/'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        Uri.parse('$baseUrl/users'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
           'email': email,
@@ -32,35 +26,95 @@ class AuthService {
       final responseData = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Successful registration
         return {
           'success': true,
           'data': responseData,
-          'message': 'Registration successful',
+          'message': 'Registration successful'
         };
       } else {
-        // Failed registration with error message from server
         return {
           'success': false,
-          'message': responseData['detail'] ?? 'Registration failed',
-          'statusCode': response.statusCode,
+          'message': responseData['detail'] ?? 'Registration failed'
         };
       }
     } catch (e) {
-      // Handle network or other errors
-      return {
-        'success': false,
-        'message': 'Network error: ${e.toString()}',
-      };
+      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
     }
   }
 
-  // Login user (placeholder for future implementation)
-  Future<Map<String, dynamic>> login({
-    required String username,
-    required String password,
-  }) async {
-    // TODO: Implement login functionality
-    throw UnimplementedError('Login functionality not implemented yet');
+  Future<Map<String, dynamic>> login(
+      {required String username, required String password}) async {
+    try {
+      // OAuth2 form data format as required by the backend
+      final response = await http.post(
+        Uri.parse('$baseUrl/login/access-token'),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {
+          'username': username,
+          'password': password,
+        },
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'token': responseData['access_token'],
+          'tokenType': responseData['token_type'],
+          'message': 'Login successful'
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['detail'] ?? 'Authentication failed'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getUserProfile(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/me'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json'
+        },
+      );
+
+      final responseData = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseData['detail'] ?? 'Failed to fetch user profile'
+        };
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Connection error: ${e.toString()}'};
+    }
+  }
+
+  Future<bool> verifyToken(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/users/me'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
   }
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../api/services/auth_service.dart';
+import '../utils/secure_storage.dart';
 
-// User model to store authenticated user data
+// User model class
 class User {
   final int id;
   final String username;
@@ -15,7 +16,6 @@ class User {
     this.householdId,
   });
 
-  // Create User from API response
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'],
@@ -24,9 +24,18 @@ class User {
       householdId: json['household_id'],
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'email': email,
+      'household_id': householdId,
+    };
+  }
 }
 
-// Authentication states
+// Auth status enum
 enum AuthStatus {
   initial,
   authenticating,
@@ -35,15 +44,14 @@ enum AuthStatus {
   error,
 }
 
+// Main provider class
 class AuthProvider extends ChangeNotifier {
-  // Dependencies
   final AuthService _authService;
-
-  // State variables
   AuthStatus _status = AuthStatus.initial;
   User? _user;
   String? _errorMessage;
   bool _isRegistering = false;
+  String? _token;
 
   // Getters
   AuthStatus get status => _status;
@@ -51,59 +59,136 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isRegistering => _isRegistering;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
+  String? get token => _token;
 
-  // Constructor
-  AuthProvider({required AuthService authService}) : _authService = authService;
+  AuthProvider({required AuthService authService})
+      : _authService = authService {
+    _checkAuthentication();
+  }
 
-  // Register a new user
+  // Check if user is already authenticated (token exists and is valid)
+  Future<void> _checkAuthentication() async {
+    _status = AuthStatus.authenticating;
+    notifyListeners();
+
+    try {
+      final storedToken = await SecureStorage.getToken();
+      if (storedToken != null) {
+        final isValid = await _authService.verifyToken(storedToken);
+        if (isValid) {
+          _token = storedToken;
+          await _loadUserProfile();
+          return;
+        }
+      }
+
+      // If we reach here, token is invalid or doesn't exist
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    } catch (e) {
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+    }
+  }
+
+  // Load user profile using stored token
+  Future<void> _loadUserProfile() async {
+    if (_token == null) return;
+
+    final response = await _authService.getUserProfile(_token!);
+
+    if (response['success']) {
+      _user = User.fromJson(response['data']);
+      _status = AuthStatus.authenticated;
+    } else {
+      _status = AuthStatus.unauthenticated;
+      await SecureStorage.deleteToken();
+      _token = null;
+    }
+
+    notifyListeners();
+  }
+
+  // User registration
   Future<bool> register({
     required String username,
     required String email,
     required String password,
     int? householdId,
   }) async {
-    try {
-      // Update state to registering
-      _status = AuthStatus.authenticating;
-      _isRegistering = true;
-      _errorMessage = null;
-      notifyListeners();
+    _isRegistering = true;
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
 
-      // Call registration API
-      final result = await _authService.register(
+    try {
+      final response = await _authService.register(
         username: username,
         email: email,
         password: password,
         householdId: householdId,
       );
 
-      // Handle response
-      if (result['success']) {
-        // On success, create user object from response data
-        _user = User.fromJson(result['data']);
-        _status = AuthStatus.authenticated;
+      _isRegistering = false;
+
+      if (response['success']) {
+        _status = AuthStatus
+            .unauthenticated; // User needs to login after registration
         notifyListeners();
         return true;
       } else {
-        // On failure, update error state
+        _errorMessage = response['message'];
         _status = AuthStatus.error;
-        _errorMessage = result['message'];
         notifyListeners();
         return false;
       }
     } catch (e) {
-      // Handle exceptions
+      _isRegistering = false;
+      _errorMessage = e.toString();
       _status = AuthStatus.error;
-      _errorMessage = 'Registration error: ${e.toString()}';
       notifyListeners();
       return false;
-    } finally {
-      _isRegistering = false;
-      notifyListeners();
     }
   }
 
-  // Reset error state
+  // User login
+  Future<bool> login(
+      {required String username, required String password}) async {
+    _status = AuthStatus.authenticating;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _authService.login(
+        username: username,
+        password: password,
+      );
+
+      if (response['success']) {
+        _token = response['token'];
+
+        // Store token securely
+        await SecureStorage.saveToken(_token!);
+
+        // Load user profile
+        await _loadUserProfile();
+
+        return true;
+      } else {
+        _errorMessage = response['message'];
+        _status = AuthStatus.error;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      _status = AuthStatus.error;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Clear error message
   void clearError() {
     _errorMessage = null;
     if (_status == AuthStatus.error) {
@@ -112,8 +197,11 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Logout user
-  void logout() {
+  // User logout
+  Future<void> logout() async {
+    await SecureStorage.deleteToken();
+    await SecureStorage.deleteUserData();
+    _token = null;
     _user = null;
     _status = AuthStatus.unauthenticated;
     notifyListeners();
