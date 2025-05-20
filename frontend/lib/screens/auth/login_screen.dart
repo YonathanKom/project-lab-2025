@@ -20,29 +20,36 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isLoading = false;
 
+  late AuthProvider _authProvider;
+  late VoidCallback _authListener;
+
   @override
   void initState() {
     super.initState();
-    // Add listeners to controllers to validate form on changes
+
     _usernameController.addListener(_validateForm);
     _passwordController.addListener(_validateForm);
 
-    // Listen for auth status changes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      authProvider.addListener(() {
-        if (authProvider.status == AuthStatus.authenticated) {
-          Navigator.pushReplacementNamed(context, Routes.home);
-        } else if (authProvider.status == AuthStatus.error && mounted) {
+      _authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+      _authListener = () {
+        if (!mounted) return;
+
+        if (_authProvider.status == AuthStatus.authenticated) {
+          Navigator.pushReplacementNamed(context, Routes.dashboard);
+        } else if (_authProvider.status == AuthStatus.error) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(authProvider.errorMessage ?? 'An error occurred'),
+              content: Text(_authProvider.errorMessage ?? 'An error occurred'),
               backgroundColor: Theme.of(context).colorScheme.error,
             ),
           );
           setState(() => _isLoading = false);
         }
-      });
+      };
+
+      _authProvider.addListener(_authListener);
     });
   }
 
@@ -50,6 +57,16 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+
+    // Only remove listener if _authProvider was initialized
+    if (mounted) {
+      try {
+        _authProvider.removeListener(_authListener);
+      } catch (_) {
+        // Handle any error if listener wasn't added (optional safety)
+      }
+    }
+
     super.dispose();
   }
 

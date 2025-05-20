@@ -13,7 +13,7 @@ class AuthService {
       int? householdId}) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/users'),
+        Uri.parse('$baseUrl/users/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,

@@ -81,7 +81,7 @@ class RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      Navigator.pushReplacementNamed(context, Routes.home);
+      Navigator.pushReplacementNamed(context, Routes.dashboard);
     } else if (mounted) {
       // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
