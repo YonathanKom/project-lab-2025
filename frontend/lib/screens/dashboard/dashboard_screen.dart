@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/theme_toggle.dart';
-import '../../utils/theme.dart';
+import '../../widgets/common/app_drawer.dart';
+import '../../utils/routes.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -14,12 +15,29 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = false;
 
-  // Mock data for shopping list summary
-  // In a real app, this would come from an API or provider
+  // Mock data for shopping lists - TODO: Replace with API service
   final List<Map<String, dynamic>> _shoppingLists = [
-    {'id': 1, 'name': 'Groceries', 'itemCount': 5, 'completed': 2},
-    {'id': 2, 'name': 'Hardware Store', 'itemCount': 3, 'completed': 0},
-    {'id': 3, 'name': 'Birthday Party', 'itemCount': 8, 'completed': 5},
+    {
+      'id': 1,
+      'name': 'Weekly Groceries',
+      'itemCount': 12,
+      'completedCount': 8,
+      'createdAt': DateTime.now().subtract(const Duration(days: 2)),
+    },
+    {
+      'id': 2,
+      'name': 'Party Supplies',
+      'itemCount': 8,
+      'completedCount': 3,
+      'createdAt': DateTime.now().subtract(const Duration(days: 5)),
+    },
+    {
+      'id': 3,
+      'name': 'Household Items',
+      'itemCount': 6,
+      'completedCount': 6,
+      'createdAt': DateTime.now().subtract(const Duration(days: 1)),
+    },
   ];
 
   @override
@@ -29,115 +47,114 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadDashboardData() async {
-    if (!mounted) return;
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    // Simulate API call delay
-    await Future.delayed(const Duration(milliseconds: 800));
+    // TODO: Implement API call to fetch shopping lists
+    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
 
-    // In a real app, you would fetch data from your backend here
-    // Example:
-    // final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    // final token = authProvider.token;
-    // final response = await yourService.getShoppingLists(token);
-
-    if (!mounted) return;
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
-        actions: [
+        actions: const [
           ThemeToggle(),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await authProvider.logout();
-              if (!mounted) return;
-              Navigator.of(context).pushReplacementNamed('/login');
-            },
-          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadDashboardData,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // User welcome card
-                    Card(
-                      elevation: 2,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome back,',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                            Text(
-                              user?.username ?? 'User',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(
-                                    color: AppTheme.primaryColor,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    // Dashboard stats
-                    _buildStatsSection(),
-
-                    const SizedBox(height: 24),
-
-                    // Shopping lists
-                    Text(
-                      'Your Shopping Lists',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
+      drawer: const AppDrawer(),
+      body: RefreshIndicator(
+        onRefresh: _loadDashboardData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Welcome Card
+            Consumer<AuthProvider>(
+              builder: (context, authProvider, child) {
+                final user = authProvider.user;
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 30,
+                          backgroundColor: Theme.of(context).primaryColor,
+                          child: const Icon(
+                            Icons.person,
+                            color: Colors.white,
+                            size: 30,
                           ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome back, ${user?.username ?? 'User'}!',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Here\'s your shopping overview',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-
-                    ..._buildShoppingLists(isDark),
-
-                    const SizedBox(height: 80), // Bottom padding for FAB
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
+
+            const SizedBox(height: 16),
+
+            // Stats Section
+            _buildStatsSection(),
+
+            const SizedBox(height: 24),
+
+            // Shopping Lists Section
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Recent Shopping Lists',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pushNamed(Routes.shoppingLists);
+                  },
+                  child: const Text('View All'),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Shopping Lists
+            ..._buildShoppingLists(_isLoading),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Navigate to create shopping list screen
-          // This would be implemented in future stories
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text('Create new shopping list (to be implemented)')),
-          );
+          // TODO: Implement navigation to create new shopping list
+          Navigator.of(context).pushNamed(Routes.shoppingLists);
         },
         child: const Icon(Icons.add),
       ),
@@ -145,12 +162,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildStatsSection() {
-    // Calculate summary stats
-    int totalLists = _shoppingLists.length;
-    int totalItems =
-        _shoppingLists.fold(0, (sum, list) => sum + (list['itemCount'] as int));
-    int completedItems =
-        _shoppingLists.fold(0, (sum, list) => sum + (list['completed'] as int));
+    final totalLists = _shoppingLists.length;
+    final totalItems = _shoppingLists.fold<int>(
+      0,
+      (sum, list) => sum + (list['itemCount'] as int),
+    );
+    final completedItems = _shoppingLists.fold<int>(
+      0,
+      (sum, list) => sum + (list['completedCount'] as int),
+    );
 
     return Row(
       children: [
@@ -159,7 +179,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Lists',
             totalLists.toString(),
             Icons.list_alt,
-            AppTheme.primaryColor,
+            Colors.blue,
           ),
         ),
         const SizedBox(width: 12),
@@ -168,16 +188,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Items',
             totalItems.toString(),
             Icons.shopping_cart,
-            AppTheme.secondaryColor,
+            Colors.green,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
             'Completed',
-            '$completedItems/$totalItems',
-            Icons.check_circle_outline,
-            AppTheme.success,
+            completedItems.toString(),
+            Icons.check_circle,
+            Colors.orange,
           ),
         ),
       ],
@@ -187,27 +207,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return Card(
-      elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 28),
+            Icon(
+              icon,
+              color: color,
+              size: 28,
+            ),
             const SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(
-                fontSize: 20,
+              style: const TextStyle(
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: color,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
-                color: Theme.of(context).textTheme.bodyMedium?.color,
+                color: Colors.grey[600],
+                fontSize: 12,
               ),
             ),
           ],
@@ -216,33 +238,43 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  List<Widget> _buildShoppingLists(bool isDark) {
+  List<Widget> _buildShoppingLists(bool isLoading) {
+    if (isLoading) {
+      return [
+        const Center(
+          child: Padding(
+            padding: EdgeInsets.all(32),
+            child: CircularProgressIndicator(),
+          ),
+        ),
+      ];
+    }
+
     if (_shoppingLists.isEmpty) {
       return [
-        Center(
+        Card(
           child: Padding(
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.all(32),
             child: Column(
               children: [
                 Icon(
-                  Icons.shopping_bag_outlined,
+                  Icons.shopping_cart_outlined,
                   size: 64,
-                  color: isDark ? Colors.white38 : Colors.black38,
+                  color: Colors.grey[400],
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'No shopping lists yet',
                   style: TextStyle(
                     fontSize: 18,
-                    color: isDark ? Colors.white70 : Colors.black54,
+                    color: Colors.grey[600],
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Create your first list using the + button',
+                  'Tap the + button to create your first list',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: isDark ? Colors.white54 : Colors.black45,
+                    color: Colors.grey[500],
                   ),
                 ),
               ],
@@ -253,62 +285,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return _shoppingLists.map((list) {
-      double completionPercentage =
-          list['itemCount'] > 0 ? (list['completed'] / list['itemCount']) : 0.0;
+      final progress = list['completedCount'] / list['itemCount'];
+      final progressColor = _getProgressColor(progress);
 
       return Card(
-        margin: const EdgeInsets.only(top: 12),
-        child: InkWell(
-          onTap: () {
-            // Navigate to list details (to be implemented)
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content:
-                      Text('View list: ${list['name']} (to be implemented)')),
-            );
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        list['name'],
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w600,
-                                ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      '${list['completed']}/${list['itemCount']} items',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(
-                  value: completionPercentage,
-                  backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
-                  color: _getProgressColor(completionPercentage),
-                ),
-              ],
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          leading: CircleAvatar(
+            backgroundColor: progressColor.withValues(alpha: 0.1),
+            child: Icon(
+              Icons.shopping_cart,
+              color: progressColor,
             ),
           ),
+          title: Text(
+            list['name'],
+            style: const TextStyle(fontWeight: FontWeight.w500),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 4),
+              Text(
+                '${list['completedCount']}/${list['itemCount']} items completed',
+              ),
+              const SizedBox(height: 4),
+              LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.grey[300],
+                valueColor: AlwaysStoppedAnimation<Color>(progressColor),
+              ),
+            ],
+          ),
+          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          onTap: () {
+            // TODO: Navigate to shopping list detail
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Opening ${list['name']} - Coming soon!'),
+              ),
+            );
+          },
         ),
       );
     }).toList();
   }
 
-  Color _getProgressColor(double percentage) {
-    if (percentage >= 1.0) return AppTheme.success;
-    if (percentage > 0.5) return AppTheme.info;
-    if (percentage > 0.0) return AppTheme.warning;
-    return AppTheme.error;
+  Color _getProgressColor(double progress) {
+    if (progress >= 1.0) return Colors.green;
+    if (progress >= 0.7) return Colors.orange;
+    return Colors.blue;
   }
 }
