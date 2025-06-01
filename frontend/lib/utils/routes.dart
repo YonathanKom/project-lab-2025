@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
+import '../screens/household/household_screen.dart';
 import '../screens/shopping_lists/shopping_lists_screen.dart';
 import '../screens/items/items_screen.dart';
 import '../screens/history/history_screen.dart';
@@ -17,6 +18,7 @@ class Routes {
   static const String shoppingLists = '/shopping-lists';
   static const String items = '/items';
   static const String history = '/history';
+  static const String household = '/household';
   static const String settings = '/settings';
   static const String help = '/help';
   static const String about = '/about';
@@ -30,6 +32,7 @@ class Routes {
       shoppingLists: (context) => const ShoppingListsScreen(),
       items: (context) => const ItemsScreen(),
       history: (context) => const HistoryScreen(),
+      household: (context) => const HouseholdScreen(),
       settings: (context) => const SettingsScreen(),
       help: (context) => const HelpScreen(),
       about: (context) => const AboutScreen(),

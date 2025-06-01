@@ -99,6 +99,11 @@ class AppTheme {
       iconTheme: IconThemeData(
         color: isLight ? textPrimaryLight : textPrimaryDark,
       ),
+      tabBarTheme: TabBarTheme(
+        labelColor: Colors.white, // Active tab label/icon color
+        unselectedLabelColor: Colors.white70, // Inactive tab label/icon
+        indicatorColor: Colors.white, // Underline color
+      ),
       textTheme: _getTextTheme(brightness),
       fontFamily: fontFamily,
     );

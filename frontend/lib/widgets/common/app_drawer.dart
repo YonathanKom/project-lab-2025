@@ -86,6 +86,12 @@ class AppDrawer extends StatelessWidget {
                 ),
                 _buildDrawerItem(
                   context,
+                  icon: Icons.home,
+                  title: 'Household',
+                  route: Routes.household,
+                ),
+                _buildDrawerItem(
+                  context,
                   icon: Icons.settings,
                   title: 'Settings',
                   route: Routes.settings,

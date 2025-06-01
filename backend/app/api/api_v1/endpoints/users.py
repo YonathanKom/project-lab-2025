@@ -19,14 +19,34 @@ def create_new_user(
     """
     Create new user
     """
-    user = get_user_by_username(db, username=user_in.username)
+    # Check if username exists
+    user = db.query(User).filter(User.username == user_in.username).first()
     if user:
         raise HTTPException(
             status_code=400,
             detail="The user with this username already exists",
         )
-    user = create_user(db, obj_in=user_in)
-    return user
+    
+    # Check if email exists
+    user = db.query(User).filter(User.email == user_in.email).first()
+    if user:
+        raise HTTPException(
+            status_code=400,
+            detail="The user with this email already exists",
+        )
+    
+    # Create new user
+    hashed_password = get_password_hash(user_in.password)
+    db_user = User(
+        username=user_in.username,
+        email=user_in.email,
+        hashed_password=hashed_password
+    )
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    return db_user
 
 @router.get("/me", response_model=UserSchema)
 def read_user_me(

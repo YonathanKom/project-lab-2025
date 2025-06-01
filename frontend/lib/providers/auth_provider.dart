@@ -206,4 +206,47 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.unauthenticated;
     notifyListeners();
   }
+
+  // Refresh user data from server
+  Future<void> refreshUserData() async {
+    if (_token == null) {
+      _errorMessage = 'No authentication token available';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      final response = await _authService.getUserProfile(_token!);
+
+      if (response['success']) {
+        _user = User.fromJson(response['data']);
+        // Clear any previous errors on successful refresh
+        _errorMessage = null;
+        if (_status != AuthStatus.authenticated) {
+          _status = AuthStatus.authenticated;
+        }
+        notifyListeners();
+      } else {
+        // Server returned error response
+        _errorMessage = response['message'] ?? 'Failed to refresh user data';
+
+        // If it's an authentication error, logout the user
+        if (response['message']?.toLowerCase().contains('token') == true ||
+            response['message']?.toLowerCase().contains('unauthorized') ==
+                true ||
+            response['message']?.toLowerCase().contains('expired') == true) {
+          await logout();
+        } else {
+          _status = AuthStatus.error;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      // Network or parsing error
+      _errorMessage = 'Network error: Unable to refresh user data';
+      _status = AuthStatus.error;
+      notifyListeners();
+    }
+  }
 }

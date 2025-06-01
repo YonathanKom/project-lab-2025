@@ -20,7 +20,6 @@ def create_user(db: Session, obj_in: UserCreate) -> User:
         username=obj_in.username,
         email=obj_in.email,
         hashed_password=get_password_hash(obj_in.password),
-        household_id=obj_in.household_id
     )
     db.add(db_user)
     db.commit()
