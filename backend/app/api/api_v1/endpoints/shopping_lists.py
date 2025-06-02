@@ -61,7 +61,7 @@ def get_shopping_list(
     shopping_list = db.query(ShoppingList).filter(ShoppingList.id == list_id).first()
     if not shopping_list:
         raise HTTPException(status_code=404, detail="Shopping list not found")
-    if shopping_list_in.household_id not in [household.id for household in current_user.households]:
+    if shopping_list.household_id not in [household.id for household in current_user.households]:
         raise HTTPException(status_code=403, detail="Not authorized to access this shopping list")
     return shopping_list
 

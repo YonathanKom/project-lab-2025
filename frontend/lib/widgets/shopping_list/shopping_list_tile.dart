@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/shopping_list.dart';
+import '../../utils/routes.dart';
 
 class ShoppingListTile extends StatelessWidget {
   final ShoppingList shoppingList;
@@ -137,7 +138,16 @@ class ShoppingListTile extends StatelessWidget {
             ),
           ],
         ),
-        onTap: onTap,
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            Routes.shoppingListDetails,
+            arguments: {
+              'listId': shoppingList.id,
+              'listName': shoppingList.name,
+            },
+          );
+        },
       ),
     );
   }

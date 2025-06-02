@@ -7,6 +7,7 @@ import '../../models/shopping_list.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/shopping_list/shopping_list_tile.dart';
 import '../../widgets/theme_toggle.dart';
+import 'edit_shopping_list_screen.dart';
 
 class ShoppingListsScreen extends StatefulWidget {
   const ShoppingListsScreen({super.key});
@@ -92,57 +93,32 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
       return;
     }
 
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => _CreateListDialog(),
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditShoppingListScreen(
+          householdId: _selectedHouseholdId,
+        ),
+      ),
     );
 
-    if (result != null && result.isNotEmpty) {
-      try {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        final token = authProvider.token!;
-        final createData = ShoppingListCreate(
-          name: result,
-          householdId: _selectedHouseholdId!,
-        );
-
-        await _shoppingListService.createShoppingList(createData, token);
-        _showSnackBar('Shopping list created successfully');
-        _loadShoppingLists();
-      } catch (e) {
-        _showSnackBar(
-            'Failed to create shopping list: ${e.toString().replaceFirst('Exception: ', '')}');
-      }
+    if (result == true) {
+      _loadShoppingLists();
     }
   }
 
-  Future<void> _editShoppingList(ShoppingList list) async {
-    final result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext dialogContext) =>
-          _CreateListDialog(initialName: list.name),
+  Future<void> _editShoppingList(ShoppingList shoppingList) async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => EditShoppingListScreen(
+          shoppingList: shoppingList,
+        ),
+      ),
     );
 
-    if (result != null && result.isNotEmpty && result != list.name) {
-      if (!mounted) return;
-
-      try {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        final token = authProvider.token!;
-        final updateData = ShoppingListUpdate(name: result);
-
-        await _shoppingListService.updateShoppingList(
-            list.id, updateData, token);
-
-        if (!mounted) return;
-        _showSnackBar('Shopping list updated successfully');
-        await _loadShoppingLists();
-      } catch (e) {
-        if (!mounted) return;
-        _showSnackBar(
-          'Failed to update shopping list: ${e.toString().replaceFirst('Exception: ', '')}',
-        );
-      }
+    if (result == true) {
+      _loadShoppingLists();
     }
   }
 
@@ -328,72 +304,6 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
           onDelete: () => _deleteShoppingList(list),
         );
       },
-    );
-  }
-}
-
-class _CreateListDialog extends StatefulWidget {
-  final String? initialName;
-
-  const _CreateListDialog({this.initialName});
-
-  @override
-  State<_CreateListDialog> createState() => _CreateListDialogState();
-}
-
-class _CreateListDialogState extends State<_CreateListDialog> {
-  late TextEditingController _controller;
-  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.initialName ?? '');
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.initialName != null;
-
-    return AlertDialog(
-      title: Text(isEditing ? 'Edit Shopping List' : 'Create Shopping List'),
-      content: Form(
-        key: _formKey,
-        child: TextFormField(
-          controller: _controller,
-          decoration: const InputDecoration(
-            labelText: 'List Name',
-            hintText: 'Enter shopping list name',
-          ),
-          autofocus: true,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Please enter a list name';
-            }
-            return null;
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancel'),
-        ),
-        TextButton(
-          onPressed: () {
-            if (_formKey.currentState?.validate() == true) {
-              Navigator.of(context).pop(_controller.text.trim());
-            }
-          },
-          child: Text(isEditing ? 'Update' : 'Create'),
-        ),
-      ],
     );
   }
 }
