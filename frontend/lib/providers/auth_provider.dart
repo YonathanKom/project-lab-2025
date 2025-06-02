@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api/services/auth_service.dart';
+import '../models/household.dart';
 import '../utils/secure_storage.dart';
 
 // User model class
@@ -7,21 +8,30 @@ class User {
   final int id;
   final String username;
   final String email;
-  final int? householdId;
+  final List<Household> households;
 
   User({
     required this.id,
     required this.username,
     required this.email,
-    this.householdId,
+    required this.households,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
+    print('User.fromJson json: $json');
+    final rawHouseholds = json['households'];
+    print('rawHouseholds: $rawHouseholds');
+    final householdsList = (rawHouseholds as List<dynamic>?) ?? [];
+    print('householdsList: $householdsList');
+    final households =
+        householdsList.map((h) => Household.fromJson(h)).toList();
+    print('parsed households: $households');
+
     return User(
       id: json['id'],
       username: json['username'],
       email: json['email'],
-      householdId: json['household_id'],
+      households: households,
     );
   }
 
@@ -30,9 +40,12 @@ class User {
       'id': id,
       'username': username,
       'email': email,
-      'household_id': householdId,
+      'households': households.map((h) => h.toJson()).toList(),
     };
   }
+
+  /// Helper to get a list of household IDs if needed
+  List<int> get householdIds => households.map((h) => h.id).toList();
 }
 
 // Auth status enum

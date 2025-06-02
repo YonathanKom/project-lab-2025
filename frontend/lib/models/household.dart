@@ -10,7 +10,7 @@ class Household {
     required this.id,
     required this.name,
     required this.createdAt,
-    required this.members,
+    this.members = const [],
   });
 
   factory Household.fromJson(Map<String, dynamic> json) {

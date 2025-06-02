@@ -1,6 +1,6 @@
 -- Initialize database for the Shopping List Management System
 
--- Users Table (remove household_id)
+-- Users Table
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) UNIQUE NOT NULL,
