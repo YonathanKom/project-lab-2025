@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/shopping_list.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/register_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/household/household_screen.dart';
+import '../screens/items/add_edit_item_screen.dart';
 import '../screens/shopping_lists/shopping_list_details_screen.dart';
 import '../screens/shopping_lists/shopping_lists_screen.dart';
 import '../screens/items/items_screen.dart';
@@ -24,6 +26,7 @@ class Routes {
   static const String help = '/help';
   static const String about = '/about';
   static const String shoppingListDetails = '/shopping-list-details';
+  static const String addEditItem = '/add-edit-item';
 
   // Get all routes mapping
   static Map<String, Widget Function(BuildContext)> getRoutes() {
@@ -40,12 +43,14 @@ class Routes {
       about: (context) => const AboutScreen(),
       Routes.shoppingListDetails: (context) {
         final args =
-            ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+            ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;
         return ShoppingListDetailsScreen(
-          listId: args?['listId'] ?? '',
-          listName: args?['listName'],
+          shoppingList: args['shoppingList'] as ShoppingList,
         );
       },
+      Routes.addEditItem: (context) => AddEditItemScreen(
+            shoppingListId: ModalRoute.of(context)!.settings.arguments as int,
+          ),
     };
   }
 }

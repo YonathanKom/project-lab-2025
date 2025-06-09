@@ -1,21 +1,18 @@
-import 'package:fastflutter/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/shopping_list.dart';
 import '../../api/services/shopping_list_service.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/common/app_drawer.dart';
-import '../../widgets/shopping_list/item_tile.dart';
+import '../../utils/constants.dart';
 import '../../widgets/theme_toggle.dart';
+import '../items/add_edit_item_screen.dart';
 
 class ShoppingListDetailsScreen extends StatefulWidget {
-  final int listId;
-  final String? listName;
+  final ShoppingList shoppingList;
 
   const ShoppingListDetailsScreen({
     super.key,
-    required this.listId,
-    this.listName,
+    required this.shoppingList,
   });
 
   @override
@@ -24,213 +21,207 @@ class ShoppingListDetailsScreen extends StatefulWidget {
 }
 
 class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
-  late final ShoppingListService _shoppingListService;
-  ShoppingList? _shoppingList;
+  final ShoppingListService _shoppingListService = ShoppingListService(baseUrl);
+  late ShoppingList _shoppingList;
   bool _isLoading = true;
-  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _shoppingListService = ShoppingListService(baseUrl: baseUrl);
+    _shoppingList = widget.shoppingList;
     _loadShoppingList();
   }
 
   Future<void> _loadShoppingList() async {
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
+    setState(() => _isLoading = true);
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final token = authProvider.token;
-
-      if (token == null) {
-        setState(() {
-          _errorMessage = 'Authentication required';
-          _isLoading = false;
-        });
-        return;
-      }
-
-      final shoppingList =
-          await _shoppingListService.getShoppingList(widget.listId, token);
-
-      if (mounted) {
-        setState(() {
-          _shoppingList = shoppingList;
-          _isLoading = false;
-        });
-      }
+      final list = await _shoppingListService.getShoppingList(
+        listId: _shoppingList.id,
+        token: authProvider.token!,
+      );
+      setState(() {
+        _shoppingList = list;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = 'Failed to load shopping list: ${e.toString()}';
-          _isLoading = false;
-        });
-      }
+      setState(() => _isLoading = false);
+      _showSnackBar('Failed to load items: ${e.toString()}');
     }
   }
 
-  void _showSnackBar(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+  Future<void> _toggleItem(ShoppingItem item) async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      await _shoppingListService.toggleItemPurchased(
+        listId: _shoppingList.id,
+        itemId: item.id,
+        isPurchased: !item.isPurchased,
+        token: authProvider.token!,
       );
+      _loadShoppingList();
+    } catch (e) {
+      _showSnackBar('Failed to update item: ${e.toString()}');
     }
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_errorMessage != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              _errorMessage!,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _loadShoppingList,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_shoppingList == null) {
-      return const Center(
-        child: Text('Shopping list not found'),
-      );
-    }
-
-    final items = _shoppingList!.items;
-
-    if (items.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.shopping_cart_outlined,
-              size: 64,
-              color: Theme.of(context)
-                  .colorScheme
-                  .onSurface
-                  .withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No items in this list',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.7),
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Add items to get started',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.5),
-                  ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadShoppingList,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: ItemTile(
-              item: item,
-              onToggle: (item) => _toggleItemPurchased(item),
-              onEdit: (item) => _editItem(item),
-              onDelete: (item) => _deleteItem(item),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Future<void> _toggleItemPurchased(ShoppingItem item) async {
-    // TODO: Implement when item update API is available
-    _showSnackBar('Item toggle functionality coming soon');
-  }
-
-  Future<void> _editItem(ShoppingItem item) async {
-    // TODO: Implement when item edit screen is available
-    _showSnackBar('Item editing functionality coming soon');
   }
 
   Future<void> _deleteItem(ShoppingItem item) async {
-    // TODO: Implement when item delete API is available
-    final confirmed = await showDialog<bool>(
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Item'),
-        content: Text('Are you sure you want to delete "${item.name}"?'),
+        content: Text('Delete "${item.name}"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
 
-    if (confirmed == true) {
-      _showSnackBar('Item deletion functionality coming soon');
+    if (confirm == true) {
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        await _shoppingListService.deleteShoppingItem(
+          listId: _shoppingList.id,
+          itemId: item.id,
+          token: authProvider.token!,
+        );
+        _loadShoppingList();
+      } catch (e) {
+        _showSnackBar('Failed to delete item: ${e.toString()}');
+      }
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Widget _buildItemTile(ShoppingItem item) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: ListTile(
+        leading: Checkbox(
+          value: item.isPurchased,
+          onChanged: (_) => _toggleItem(item),
+        ),
+        title: Text(
+          item.name,
+          style: TextStyle(
+            decoration: item.isPurchased ? TextDecoration.lineThrough : null,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (item.description != null)
+              Text(item.description!,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            Row(
+              children: [
+                Text('Qty: ${item.quantity}'),
+                if (item.price != null) ...[
+                  const SizedBox(width: 16),
+                  Text('₪${item.price!.toStringAsFixed(2)}'),
+                ],
+              ],
+            ),
+          ],
+        ),
+        trailing: PopupMenuButton<String>(
+          onSelected: (value) {
+            if (value == 'edit') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AddEditItemScreen(
+                    item: item,
+                    shoppingListId: _shoppingList.id,
+                  ),
+                ),
+              ).then((result) {
+                if (result == true) _loadShoppingList();
+              });
+            } else if (value == 'delete') {
+              _deleteItem(item);
+            }
+          },
+          itemBuilder: (context) => [
+            const PopupMenuItem(value: 'edit', child: Text('Edit')),
+            const PopupMenuItem(value: 'delete', child: Text('Delete')),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final listName = _shoppingList?.name ?? widget.listName ?? 'Shopping List';
+    final unpurchasedItems =
+        _shoppingList.items.where((i) => !i.isPurchased).toList();
+    final purchasedItems =
+        _shoppingList.items.where((i) => i.isPurchased).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(listName),
+        title: Text(_shoppingList.name),
         actions: const [ThemeToggle()],
       ),
-      drawer: const AppDrawer(),
-      body: _buildBody(),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+              onRefresh: _loadShoppingList,
+              child: ListView(
+                children: [
+                  if (unpurchasedItems.isEmpty && purchasedItems.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(
+                        child: Text('No items yet. Tap + to add items.'),
+                      ),
+                    ),
+                  if (unpurchasedItems.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('To Purchase',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    ...unpurchasedItems.map(_buildItemTile),
+                  ],
+                  if (purchasedItems.isNotEmpty) ...[
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Purchased',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    ...purchasedItems.map(_buildItemTile),
+                  ],
+                ],
+              ),
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // TODO: Navigate to add item screen when available
-          _showSnackBar('Add item functionality coming soon');
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => AddEditItemScreen(
+                shoppingListId: _shoppingList.id,
+              ),
+            ),
+          ).then((result) {
+            if (result == true) _loadShoppingList();
+          });
         },
         child: const Icon(Icons.add),
       ),

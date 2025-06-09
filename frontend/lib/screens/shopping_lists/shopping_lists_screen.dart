@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../api/services/shopping_list_service.dart';
 import '../../models/shopping_list.dart';
+import '../../utils/routes.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../widgets/shopping_list/shopping_list_tile.dart';
 import '../../widgets/theme_toggle.dart';
@@ -28,7 +29,7 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
   void initState() {
     super.initState();
     _shoppingListService = ShoppingListService(
-      baseUrl: baseUrl,
+      baseUrl,
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeHouseholds();
@@ -67,7 +68,7 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
       }
 
       final lists = await _shoppingListService.getShoppingLists(
-        token,
+        token: token,
         householdId: _selectedHouseholdId,
       );
 
@@ -151,7 +152,8 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
         final authProvider = Provider.of<AuthProvider>(context, listen: false);
         final token = authProvider.token!;
 
-        await _shoppingListService.deleteShoppingList(list.id, token);
+        await _shoppingListService.deleteShoppingList(
+            listId: list.id, token: token);
 
         if (!mounted) return;
         _showSnackBar('Shopping list deleted successfully');
@@ -297,8 +299,11 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
         return ShoppingListTile(
           shoppingList: list,
           onTap: () {
-            // Navigate to shopping list details
-            // Navigator.pushNamed(context, '/shopping-list-details', arguments: list.id);
+            Navigator.pushNamed(
+              context,
+              Routes.shoppingListDetails,
+              arguments: {'shoppingList': list},
+            );
           },
           onEdit: () => _editShoppingList(list),
           onDelete: () => _deleteShoppingList(list),

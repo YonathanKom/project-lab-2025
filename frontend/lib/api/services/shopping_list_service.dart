@@ -5,10 +5,12 @@ import '../../models/shopping_list.dart';
 class ShoppingListService {
   final String baseUrl;
 
-  ShoppingListService({required this.baseUrl});
+  ShoppingListService(this.baseUrl);
 
-  Future<List<ShoppingList>> getShoppingLists(String token,
-      {int? householdId}) async {
+  Future<List<ShoppingList>> getShoppingLists({
+    required String token,
+    int? householdId,
+  }) async {
     try {
       String url = '$baseUrl/shopping-lists/';
       if (householdId != null) {
@@ -25,17 +27,19 @@ class ShoppingListService {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        return data.map((item) => ShoppingList.fromJson(item)).toList();
+        return data.map((json) => ShoppingList.fromJson(json)).toList();
       } else {
-        throw Exception(
-            'Failed to load shopping lists: ${response.statusCode}');
+        throw Exception('Failed to load shopping lists: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error fetching shopping lists: $e');
+      throw Exception('Failed to load shopping lists: $e');
     }
   }
 
-  Future<ShoppingList> getShoppingList(int listId, String token) async {
+  Future<ShoppingList> getShoppingList({
+    required int listId,
+    required String token,
+  }) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/shopping-lists/$listId'),
@@ -48,44 +52,42 @@ class ShoppingListService {
       if (response.statusCode == 200) {
         return ShoppingList.fromJson(json.decode(response.body));
       } else {
-        throw Exception('Failed to load shopping list: ${response.statusCode}');
+        throw Exception('Failed to load shopping list: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error fetching shopping list: $e');
+      throw Exception('Failed to load shopping list: $e');
     }
   }
 
-  Future<ShoppingList> createShoppingList(
-    ShoppingListCreate shoppingListData,
-    String token,
-  ) async {
+  Future<ShoppingList> createShoppingList({
+    required ShoppingListCreate listData,
+    required String token,
+  }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/shopping-lists/'),
+        Uri.parse('$baseUrl/shopping-lists'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode(shoppingListData.toJson()),
+        body: json.encode(listData.toJson()),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return ShoppingList.fromJson(json.decode(response.body));
       } else {
-        final errorData = json.decode(response.body);
-        throw Exception(
-            errorData['detail'] ?? 'Failed to create shopping list');
+        throw Exception('Failed to create shopping list: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error creating shopping list: $e');
+      throw Exception('Failed to create shopping list: $e');
     }
   }
 
-  Future<ShoppingList> updateShoppingList(
-    int listId,
-    ShoppingListUpdate updateData,
-    String token,
-  ) async {
+  Future<ShoppingList> updateShoppingList({
+    required int listId,
+    required ShoppingListUpdate listData,
+    required String token,
+  }) async {
     try {
       final response = await http.put(
         Uri.parse('$baseUrl/shopping-lists/$listId'),
@@ -93,22 +95,23 @@ class ShoppingListService {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: json.encode(updateData.toJson()),
+        body: json.encode(listData.toJson()),
       );
 
       if (response.statusCode == 200) {
         return ShoppingList.fromJson(json.decode(response.body));
       } else {
-        final errorData = json.decode(response.body);
-        throw Exception(
-            errorData['detail'] ?? 'Failed to update shopping list');
+        throw Exception('Failed to update shopping list: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error updating shopping list: $e');
+      throw Exception('Failed to update shopping list: $e');
     }
   }
 
-  Future<void> deleteShoppingList(int listId, String token) async {
+  Future<void> deleteShoppingList({
+    required int listId,
+    required String token,
+  }) async {
     try {
       final response = await http.delete(
         Uri.parse('$baseUrl/shopping-lists/$listId'),
@@ -118,13 +121,111 @@ class ShoppingListService {
         },
       );
 
-      if (response.statusCode != 204) {
-        final errorData = json.decode(response.body);
-        throw Exception(
-            errorData['detail'] ?? 'Failed to delete shopping list');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete shopping list: ${response.body}');
       }
     } catch (e) {
-      throw Exception('Error deleting shopping list: $e');
+      throw Exception('Failed to delete shopping list: $e');
+    }
+  }
+
+  // Shopping Item methods
+  Future<ShoppingItem> createShoppingItem({
+    required int listId,
+    required Map<String, dynamic> itemData,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/items/$listId/items'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(itemData),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return ShoppingItem.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to create item: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to create item: $e');
+    }
+  }
+
+  Future<ShoppingItem> updateShoppingItem({
+    required int listId,
+    required int itemId,
+    required Map<String, dynamic> itemData,
+    required String token,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/items/$listId/items/$itemId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(itemData),
+      );
+
+      if (response.statusCode == 200) {
+        return ShoppingItem.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to update item: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to update item: $e');
+    }
+  }
+
+  Future<void> deleteShoppingItem({
+    required int listId,
+    required int itemId,
+    required String token,
+  }) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$baseUrl/items/$listId/items/$itemId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete item: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to delete item: $e');
+    }
+  }
+
+  Future<ShoppingItem> toggleItemPurchased({
+    required int listId,
+    required int itemId,
+    required bool isPurchased,
+    required String token,
+  }) async {
+    try {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/items/$listId/items/$itemId/toggle'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({'is_purchased': isPurchased}),
+      );
+
+      if (response.statusCode == 200) {
+        return ShoppingItem.fromJson(json.decode(response.body));
+      } else {
+        throw Exception('Failed to toggle item: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to toggle item: $e');
     }
   }
 }

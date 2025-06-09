@@ -33,7 +33,7 @@ class _EditShoppingListScreenState extends State<EditShoppingListScreen> {
   @override
   void initState() {
     super.initState();
-    _shoppingListService = ShoppingListService(baseUrl: baseUrl);
+    _shoppingListService = ShoppingListService(baseUrl);
 
     // Pre-populate form if editing
     if (_isEditing) {
@@ -94,9 +94,9 @@ class _EditShoppingListScreenState extends State<EditShoppingListScreen> {
         // Update existing list
         final update = ShoppingListUpdate(name: name);
         await _shoppingListService.updateShoppingList(
-          widget.shoppingList!.id,
-          update,
-          token,
+          listId: widget.shoppingList!.id,
+          listData: update,
+          token: token,
         );
         _showSuccessSnackBar('Shopping list updated successfully');
       } else {
@@ -110,7 +110,8 @@ class _EditShoppingListScreenState extends State<EditShoppingListScreen> {
           name: name,
           householdId: widget.householdId!,
         );
-        await _shoppingListService.createShoppingList(create, token);
+        await _shoppingListService.createShoppingList(
+            listData: create, token: token);
         _showSuccessSnackBar('Shopping list created successfully');
       }
 

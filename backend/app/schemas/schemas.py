@@ -1,5 +1,5 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from datetime import datetime
 
 # User schemas
@@ -95,22 +95,78 @@ class HouseholdInvitation(HouseholdInvitationInDBBase):
 # Shopping item schemas
 class ShoppingItemBase(BaseModel):
     name: str
-    quantity: float
-    unit: str
+    description: Optional[str] = None
+    quantity: int = 1
+    item_code: Optional[str] = None
+    price: Optional[float] = None
+
+    @validator('name')
+    def name_not_empty(cls, v):
+        if not v or not v.strip():
+            raise ValueError('Item name cannot be empty')
+        return v.strip()
+
+    @validator('quantity')
+    def quantity_positive(cls, v):
+        if v < 1:
+            raise ValueError('Quantity must be at least 1')
+        return v
+
+    @validator('price')
+    def price_non_negative(cls, v):
+        if v is not None and v < 0:
+            raise ValueError('Price cannot be negative')
+        return v
+
 
 class ShoppingItemCreate(ShoppingItemBase):
     pass
 
-class ShoppingItemUpdate(ShoppingItemBase):
+
+class ShoppingItemUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    quantity: Optional[int] = None
     is_purchased: Optional[bool] = None
+    item_code: Optional[str] = None
+    price: Optional[float] = None
+
+    @validator('name')
+    def name_not_empty(cls, v):
+        if v is not None and (not v or not v.strip()):
+            raise ValueError('Item name cannot be empty')
+        return v.strip() if v else v
+
+    @validator('quantity')
+    def quantity_positive(cls, v):
+        if v is not None and v < 1:
+            raise ValueError('Quantity must be at least 1')
+        return v
+
+    @validator('price')
+    def price_non_negative(cls, v):
+        if v is not None and v < 0:
+            raise ValueError('Price cannot be negative')
+        return v
+
 
 class ShoppingItemInDBBase(ShoppingItemBase):
     id: int
-    is_purchased: bool
     shopping_list_id: int
+    is_purchased: bool = False
+    added_by_id: int
+    purchased_by_id: Optional[int] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    purchased_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+
+class ShoppingItemInDB(ShoppingItemInDBBase):
+    pass
+
 
 class ShoppingItem(ShoppingItemInDBBase):
     pass

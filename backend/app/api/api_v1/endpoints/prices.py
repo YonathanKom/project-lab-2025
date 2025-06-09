@@ -48,7 +48,7 @@ async def upload_price_data(
             detail=f"Error processing XML file: {str(e)}"
         )
 
-@router.get("/chains/", response_model=List[Chain])
+@router.get("/chains", response_model=List[Chain])
 def get_chains(
     skip: int = 0,
     limit: int = 100,
@@ -60,7 +60,7 @@ def get_chains(
     chains = db.query(ChainModel).offset(skip).limit(limit).all()
     return chains
 
-@router.get("/stores/", response_model=List[Store])
+@router.get("/stores", response_model=List[Store])
 def get_stores(
     chain_id: Optional[str] = None,
     skip: int = 0,
@@ -78,7 +78,7 @@ def get_stores(
     stores = query.offset(skip).limit(limit).all()
     return stores
 
-@router.get("/items/search/", response_model=List[ItemWithPrice])
+@router.get("/items/search", response_model=List[ItemWithPrice])
 def search_items(
     query: Optional[str] = None,
     chain_id: Optional[str] = None,
@@ -104,7 +104,7 @@ def search_items(
     price_service = PriceService(db)
     return price_service.search_items(search_params)
 
-@router.get("/items/{item_code}/", response_model=Item)
+@router.get("/items/{item_code}", response_model=Item)
 def get_item(
     item_code: str,
     current_user: User = Depends(get_current_user),
@@ -121,7 +121,7 @@ def get_item(
         )
     return item
 
-@router.get("/items/{item_code}/compare-prices/", response_model=PriceComparisonResponse)
+@router.get("/items/{item_code}/compare-prices", response_model=PriceComparisonResponse)
 def compare_item_prices(
     item_code: str,
     current_user: User = Depends(get_current_user),
@@ -139,7 +139,7 @@ def compare_item_prices(
     
     return comparison
 
-@router.get("/popular-items/", response_model=List[ItemWithPrice])
+@router.get("/popular-items", response_model=List[ItemWithPrice])
 def get_popular_items(
     limit: int = 20,
     current_user: User = Depends(get_current_user),

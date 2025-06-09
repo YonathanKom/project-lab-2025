@@ -142,10 +142,7 @@ class ShoppingListTile extends StatelessWidget {
           Navigator.pushNamed(
             context,
             Routes.shoppingListDetails,
-            arguments: {
-              'listId': shoppingList.id,
-              'listName': shoppingList.name,
-            },
+            arguments: {'shoppingList': shoppingList},
           );
         },
       ),

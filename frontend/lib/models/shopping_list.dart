@@ -22,10 +22,11 @@ class ShoppingList {
       householdId: json['household_id'],
       ownerId: json['owner_id'],
       createdAt: DateTime.parse(json['created_at']),
-      items: (json['items'] as List<dynamic>?)
-              ?.map((item) => ShoppingItem.fromJson(item))
-              .toList() ??
-          [],
+      items: json['items'] != null
+          ? (json['items'] as List)
+              .map((item) => ShoppingItem.fromJson(item))
+              .toList()
+          : [],
     );
   }
 
@@ -61,12 +62,14 @@ class ShoppingListCreate {
 class ShoppingListUpdate {
   final String? name;
 
-  ShoppingListUpdate({this.name});
+  ShoppingListUpdate({
+    this.name,
+  });
 
   Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {};
-    if (name != null) data['name'] = name;
-    return data;
+    final json = <String, dynamic>{};
+    if (name != null) json['name'] = name;
+    return json;
   }
 }
 
@@ -77,6 +80,8 @@ class ShoppingItem {
   final int quantity;
   final bool isPurchased;
   final DateTime createdAt;
+  final String? itemCode;
+  final double? price;
 
   ShoppingItem({
     required this.id,
@@ -85,6 +90,8 @@ class ShoppingItem {
     required this.quantity,
     required this.isPurchased,
     required this.createdAt,
+    this.itemCode,
+    this.price,
   });
 
   factory ShoppingItem.fromJson(Map<String, dynamic> json) {
@@ -95,6 +102,8 @@ class ShoppingItem {
       quantity: json['quantity'] ?? 1,
       isPurchased: json['is_purchased'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
+      itemCode: json['item_code'],
+      price: json['price']?.toDouble(),
     );
   }
 
@@ -106,6 +115,8 @@ class ShoppingItem {
       'quantity': quantity,
       'is_purchased': isPurchased,
       'created_at': createdAt.toIso8601String(),
+      'item_code': itemCode,
+      'price': price,
     };
   }
 }
