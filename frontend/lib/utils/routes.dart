@@ -27,6 +27,7 @@ class Routes {
   static const String about = '/about';
   static const String shoppingListDetails = '/shopping-list-details';
   static const String addEditItem = '/add-edit-item';
+  static const String priceComparison = '/price-comparison';
 
   // Get all routes mapping
   static Map<String, Widget Function(BuildContext)> getRoutes() {

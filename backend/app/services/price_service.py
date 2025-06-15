@@ -6,10 +6,10 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, desc
 
-from ..models.models import Chain, Store, Item, ItemPrice
+from ..models.models import Chain, Store, Item, ItemPrice, ShoppingList
 from ..schemas.schemas import (
     ChainCreate, StoreCreate, ItemCreate, ItemPriceCreate,
-    ItemSearchParams, ItemWithPrice, PriceComparisonResponse
+    ItemSearchParams, ItemWithPrice, PriceComparisonResponse, ShoppingListPriceComparison, ItemPriceBreakdown, StoreComparison
 )
 
 class PriceService:
@@ -48,29 +48,47 @@ class PriceService:
 
     def _parse_item_element(self, item_element: ET.Element) -> Optional[Dict[str, Any]]:
         """Parse individual item element from XML."""
+
+        def get_text(tags, required: bool = True) -> Optional[str]:
+            if isinstance(tags, str):
+                tags = [tags]
+            for tag in tags:
+                el = item_element.find(tag)
+                if el is not None and el.text is not None:
+                    return el.text.strip()
+            if required:
+                raise ValueError(f"Missing or empty tag(s): {', '.join(tags)}")
+            return None
+
+        def to_float(value: Optional[str]) -> Optional[float]:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
         try:
-            # Parse datetime
-            price_update_str = item_element.find('PriceUpdateDate').text
+            price_update_str = get_text('PriceUpdateDate')
             price_update_date = datetime.strptime(price_update_str, '%Y-%m-%d %H:%M:%S')
-            
+
             return {
-                'item_code': item_element.find('ItemCode').text,
-                'item_type': int(item_element.find('ItemType').text),
-                'name': item_element.find('ItemNm').text,
-                'manufacturer_name': item_element.find('ManufacturerName').text,
-                'manufacture_country': item_element.find('ManufactureCountry').text,
-                'manufacturer_description': item_element.find('ManufacturerItemDescription').text,
-                'unit_qty': item_element.find('UnitQty').text,
-                'quantity': float(item_element.find('Quantity').text) if item_element.find('Quantity').text else None,
-                'unit_of_measure': item_element.find('UnitOfMeasure').text.strip() if item_element.find('UnitOfMeasure').text else None,
-                'is_weighted': item_element.find('bIsWeighted').text == '1',
-                'qty_in_package': float(item_element.find('QtyInPackage').text) if item_element.find('QtyInPackage').text else None,
-                'price': float(item_element.find('ItemPrice').text),
-                'unit_price': float(item_element.find('UnitOfMeasurePrice').text) if item_element.find('UnitOfMeasurePrice').text else None,
-                'allow_discount': item_element.find('AllowDiscount').text == '1',
-                'item_status': int(item_element.find('ItemStatus').text),
+                'item_code': get_text('ItemCode'),
+                'item_type': int(get_text('ItemType')),
+                'name': get_text(['ItemNm', 'ItemName']),
+                'manufacturer_name': get_text('ManufacturerName'),
+                'manufacture_country': get_text('ManufactureCountry'),
+                'manufacturer_description': get_text('ManufacturerItemDescription'),
+                'unit_qty': get_text('UnitQty'),
+                'quantity': to_float(get_text('Quantity', required=False)),
+                'unit_of_measure': get_text('UnitOfMeasure', required=False),
+                'is_weighted': get_text('bIsWeighted') == '1',
+                'qty_in_package': to_float(get_text('QtyInPackage', required=False)),
+                'price': to_float(get_text('ItemPrice')),
+                'unit_price': to_float(get_text('UnitOfMeasurePrice', required=False)),
+                'allow_discount': get_text('AllowDiscount') == '1',
+                'item_status': int(get_text('ItemStatus')),
                 'price_update_date': price_update_date
             }
+
         except (ValueError, AttributeError) as e:
             print(f"Error parsing item element: {str(e)}")
             return None
@@ -290,4 +308,118 @@ class PriceService:
             item=item,
             prices=prices,
             stores=stores
+        )
+
+    def compare_shopping_list_prices(self, shopping_list_id: int) -> Optional[ShoppingListPriceComparison]:
+        """Compare shopping list prices across all stores"""
+        # Get shopping list with items
+        shopping_list = self.db.query(ShoppingList).filter(
+            ShoppingList.id == shopping_list_id
+        ).first()
+        
+        if not shopping_list:
+            return None
+        
+        # Get all stores with their chains
+        stores = self.db.query(Store).join(Chain).all()
+        
+        # Limit to top stores by item availability
+        stores_with_prices = []
+        for store in stores:
+            price_count = self.db.query(ItemPrice).filter(
+                ItemPrice.store_id == store.id,
+                ItemPrice.item_status == 1
+            ).count()
+            if price_count > 0:
+                stores_with_prices.append((store, price_count))
+        
+        # Sort by item availability and take top 5
+        stores_with_prices.sort(key=lambda x: x[1], reverse=True)
+        top_stores = [store for store, _ in stores_with_prices[:5]]
+        
+        store_comparisons = []
+        
+        for store in top_stores:
+            total_price = 0.0
+            available_items = 0
+            missing_items = []
+            items_breakdown = []
+            
+            for item in shopping_list.items:
+                if item.item_code:
+                    # Try to find price by item code
+                    price_info = self.db.query(ItemPrice).filter(
+                        ItemPrice.item_code == item.item_code,
+                        ItemPrice.store_id == store.id,
+                        ItemPrice.item_status == 1
+                    ).first()
+                else:
+                    # Fallback to name search if no item code
+                    catalog_item = self.db.query(Item).filter(
+                        Item.name.ilike(f"%{item.name}%")
+                    ).first()
+                    
+                    price_info = None
+                    if catalog_item:
+                        price_info = self.db.query(ItemPrice).filter(
+                            ItemPrice.item_code == catalog_item.item_code,
+                            ItemPrice.store_id == store.id,
+                            ItemPrice.item_status == 1
+                        ).first()
+                
+                if price_info:
+                    item_total = price_info.price * item.quantity
+                    total_price += item_total
+                    available_items += 1
+                    
+                    items_breakdown.append(ItemPriceBreakdown(
+                        item_name=item.name,
+                        quantity=item.quantity,
+                        unit_price=price_info.price,
+                        total_price=item_total,
+                        is_available=True
+                    ))
+                else:
+                    missing_items.append(item.name)
+                    # Use item's stored price if available
+                    if item.price:
+                        item_total = item.price * item.quantity
+                        total_price += item_total
+                        
+                        items_breakdown.append(ItemPriceBreakdown(
+                            item_name=item.name,
+                            quantity=item.quantity,
+                            unit_price=item.price,
+                            total_price=item_total,
+                            is_available=False
+                        ))
+                    else:
+                        items_breakdown.append(ItemPriceBreakdown(
+                            item_name=item.name,
+                            quantity=item.quantity,
+                            unit_price=None,
+                            total_price=None,
+                            is_available=False
+                        ))
+            
+            store_comparisons.append(StoreComparison(
+                store_id=store.id,
+                store_name=store.name or f"Store {store.store_id}",
+                chain_name=store.chain.name,
+                city=store.city,
+                total_price=total_price,
+                available_items=available_items,
+                missing_items=missing_items,
+                items_breakdown=items_breakdown
+            ))
+        
+        # Sort by total price (cheapest first)
+        store_comparisons.sort(key=lambda x: x.total_price)
+        
+        return ShoppingListPriceComparison(
+            shopping_list_id=shopping_list.id,
+            shopping_list_name=shopping_list.name,
+            total_items=len(shopping_list.items),
+            compared_items=len([item for item in shopping_list.items if not item.is_purchased]),
+            store_comparisons=store_comparisons
         )

@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
 import '../../widgets/theme_toggle.dart';
 import '../items/add_edit_item_screen.dart';
+import 'price_comparison_screen.dart';
 
 class ShoppingListDetailsScreen extends StatefulWidget {
   final ShoppingList shoppingList;
@@ -66,6 +67,9 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
   }
 
   Future<void> _deleteItem(ShoppingItem item) async {
+    // 👇 Grab context-dependent objects before the async gap
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -89,14 +93,16 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
 
     if (confirm == true) {
       try {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
         await _shoppingListService.deleteShoppingItem(
           listId: _shoppingList.id,
           itemId: item.id,
           token: authProvider.token!,
         );
+
+        if (!mounted) return;
         _loadShoppingList();
       } catch (e) {
+        if (!mounted) return;
         _showSnackBar('Failed to delete item: ${e.toString()}');
       }
     }
@@ -166,6 +172,17 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
     );
   }
 
+  void _navigateToPriceComparison() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PriceComparisonScreen(
+          shoppingList: widget.shoppingList,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final unpurchasedItems =
@@ -176,7 +193,14 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_shoppingList.name),
-        actions: const [ThemeToggle()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.compare_arrows),
+            tooltip: 'Compare Prices',
+            onPressed: _navigateToPriceComparison,
+          ),
+          const ThemeToggle(),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

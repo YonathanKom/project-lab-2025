@@ -9,10 +9,10 @@ from ....core.database import get_db
 from ....services.price_service import PriceService
 from ....schemas.schemas import (
     Chain, Store, Item, ItemWithPrice, ItemSearchParams, 
-    PriceComparisonResponse
+    PriceComparisonResponse, ShoppingListPriceComparison
 )
 from ....api.deps import get_current_user
-from ....models.models import User
+from ....models.models import User, ShoppingList
 
 router = APIRouter()
 
@@ -197,3 +197,30 @@ def get_popular_items(
         result.append(item_with_price)
 
     return result
+
+@router.get("/shopping-lists/{list_id}/compare", response_model=ShoppingListPriceComparison)
+def compare_shopping_list_prices(
+    list_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Compare shopping list prices across different stores"""
+    # Verify user has access to this shopping list
+    shopping_list = db.query(ShoppingList).filter(
+        ShoppingList.id == list_id
+    ).first()
+    
+    if not shopping_list:
+        raise HTTPException(status_code=404, detail="Shopping list not found")
+    
+    # Check if user is in the household
+    if not any(h.id == shopping_list.household_id for h in current_user.households):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    price_service = PriceService(db)
+    comparison = price_service.compare_shopping_list_prices(list_id)
+    
+    if not comparison:
+        raise HTTPException(status_code=404, detail="Could not generate price comparison")
+    
+    return comparison

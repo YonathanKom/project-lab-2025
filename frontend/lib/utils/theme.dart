@@ -60,6 +60,8 @@ class AppTheme {
         onError: Colors.white,
         surface: isLight ? surfaceLight : surfaceDark,
         onSurface: isLight ? textPrimaryLight : textPrimaryDark,
+        primaryContainer: const Color(0xFFF5F5F5), // Light gray
+        onPrimaryContainer: Colors.black,
       ),
       scaffoldBackgroundColor: isLight ? surfaceLight : surfaceDark,
       appBarTheme: AppBarTheme(

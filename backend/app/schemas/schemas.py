@@ -306,6 +306,34 @@ class PriceComparisonResponse(BaseModel):
     prices: List[ItemPrice]
     stores: List[Store]
 
+# Price Comparison Schemas
+class ShoppingListPriceComparison(BaseModel):
+    shopping_list_id: int
+    shopping_list_name: str
+    total_items: int
+    compared_items: int
+    store_comparisons: List['StoreComparison']
+    
+    class Config:
+        orm_mode = True
+
+class StoreComparison(BaseModel):
+    store_id: int
+    store_name: str
+    chain_name: str
+    city: Optional[str]
+    total_price: float
+    available_items: int
+    missing_items: List[str]
+    items_breakdown: List['ItemPriceBreakdown']
+    
+class ItemPriceBreakdown(BaseModel):
+    item_name: str
+    quantity: int
+    unit_price: Optional[float]
+    total_price: Optional[float]
+    is_available: bool
+
 # Prediction schemas
 class ItemPrediction(BaseModel):
     name: str
