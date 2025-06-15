@@ -18,14 +18,10 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    print('User.fromJson json: $json');
     final rawHouseholds = json['households'];
-    print('rawHouseholds: $rawHouseholds');
     final householdsList = (rawHouseholds as List<dynamic>?) ?? [];
-    print('householdsList: $householdsList');
     final households =
         householdsList.map((h) => Household.fromJson(h)).toList();
-    print('parsed households: $households');
 
     return User(
       id: json['id'],

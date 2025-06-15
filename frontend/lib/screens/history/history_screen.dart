@@ -67,24 +67,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final token = authProvider.token;
 
-      // Debug: Check auth data
-      print('DEBUG: Token exists: ${token != null}');
-      print('DEBUG: User: ${authProvider.user}');
-      print('DEBUG: User households: ${authProvider.user?.households}');
-      print(
-          'DEBUG: User households type: ${authProvider.user?.households.runtimeType}');
-
       if (token == null) {
         throw Exception('No authentication token');
       }
-
-      // Debug: Check filter values
-      print('DEBUG: Selected household ID: $_selectedHouseholdId');
-      print(
-          'DEBUG: Selected household ID type: ${_selectedHouseholdId.runtimeType}');
-      print('DEBUG: Start date: $_startDate');
-      print('DEBUG: End date: $_endDate');
-      print('DEBUG: Search query: ${_searchController.text}');
 
       final filter = HistoryFilter(
         startDate: _startDate,
@@ -93,20 +78,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         searchQuery: _searchController.text,
       );
 
-      // Debug: Check filter object
-      print('DEBUG: Filter object created');
-      print('DEBUG: Filter query params: ${filter.toQueryParams()}');
-
       final items = await _historyService.getHistory(
         token: token,
         filter: filter,
         skip: _currentPage * _pageSize,
         limit: _pageSize,
       );
-
-      // Debug: Check response
-      print('DEBUG: Items received: ${items.length}');
-      print('DEBUG: Items type: ${items.runtimeType}');
 
       setState(() {
         _historyItems.addAll(items);
@@ -115,11 +92,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         _isLoading = false;
         _errorMessage = null;
       });
-    } catch (e, stackTrace) {
-      // Debug: Enhanced error logging
-      print('DEBUG: Error in _loadHistory: $e');
-      print('DEBUG: Stack trace: $stackTrace');
-
+    } catch (e) {
       setState(() {
         _errorMessage = e.toString();
         _isLoading = false;

@@ -23,14 +23,8 @@ class HistoryService {
     if (skip != null) queryParams['skip'] = skip.toString();
     if (limit != null) queryParams['limit'] = limit.toString();
 
-    // Debug: Check query parameters
-    print('DEBUG: HistoryService query params: $queryParams');
-
     final uri = Uri.parse('$baseUrl/history/history')
         .replace(queryParameters: queryParams);
-
-    // Debug: Check final URI
-    print('DEBUG: HistoryService URI: $uri');
 
     final response = await http.get(
       uri,
@@ -40,17 +34,8 @@ class HistoryService {
       },
     );
 
-    // Debug: Check response
-    print('DEBUG: HistoryService response status: ${response.statusCode}');
-    print('DEBUG: HistoryService response body: ${response.body}');
-
     if (response.statusCode == 200) {
       final List<dynamic> data = json.decode(response.body);
-      // Debug: Check parsed data
-      print('DEBUG: HistoryService parsed data type: ${data.runtimeType}');
-      print(
-          'DEBUG: HistoryService first item (if any): ${data.isNotEmpty ? data.first : 'empty'}');
-
       return data.map((json) => HistoryItem.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load history: ${response.body}');
