@@ -114,3 +114,6 @@ CREATE INDEX idx_shopping_items_list ON shopping_items(shopping_list_id);
 CREATE INDEX idx_history_list ON shopping_list_history(shopping_list_id);
 CREATE INDEX idx_user_households_user ON user_households(user_id);
 CREATE INDEX idx_user_households_household ON user_households(household_id);
+CREATE INDEX idx_shopping_items_purchased ON shopping_items(is_purchased, purchased_at);
+CREATE INDEX idx_shopping_items_purchased_by ON shopping_items(purchased_by_id);
+CREATE INDEX idx_shopping_items_item_code ON shopping_items(item_code);

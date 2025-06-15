@@ -194,15 +194,26 @@ class ShoppingList(ShoppingListInDBBase):
     items: List[ShoppingItem] = []
 
 # History schemas
-class HistoryEntry(BaseModel):
+class HistoryItem(BaseModel):
     id: int
-    action: str
-    data: Dict[str, Any]
-    user: str
-    timestamp: datetime
-
+    item_name: str
+    item_code: Optional[str]
+    quantity: int
+    price: Optional[float]
+    purchased_at: datetime
+    purchased_by: str
+    shopping_list_name: str
+    shopping_list_id: int
+    store_name: Optional[str]
+    chain_name: Optional[str]
+    
     class Config:
         from_attributes = True
+
+class HistoryStats(BaseModel):
+    total_items: int
+    total_spent: float
+    avg_price: float
 
 class ChainBase(BaseModel):
     chain_id: str = Field(..., description="Government chain identifier")
@@ -315,7 +326,7 @@ class ShoppingListPriceComparison(BaseModel):
     store_comparisons: List['StoreComparison']
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class StoreComparison(BaseModel):
     store_id: int
