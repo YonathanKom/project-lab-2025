@@ -1,51 +1,38 @@
-from datetime import datetime, timedelta
-from typing import Any, Dict, List
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from typing import Optional
 
-from app.api.deps import get_current_user
-from app.core.database import get_db
-from app.models.models import User, PurchaseHistory
-from app.schemas.schemas import ItemPrediction
+from ... import deps
+from ....services.prediction_service import PredictionService
+from ....schemas.predictions import PredictionsResponse
+from app.models.models import ShoppingList
+from app.schemas import schemas
 
 router = APIRouter()
 
-@router.get("/", response_model=List[ItemPrediction])
-def get_predicted_items(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> Any:
-    """
-    Get predicted items for shopping based on purchase history
-    """
-    # In a real-world scenario, you would implement machine learning models
-    # For this example, we'll use frequency-based prediction from purchase history
+@router.get("/predictions", response_model=PredictionsResponse)
+def get_predictions(
+    shopping_list_id: Optional[int] = Query(None, description="Shopping list to get predictions for"),
+    limit: int = Query(10, ge=1, le=20, description="Maximum number of predictions"),
+    current_user = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db)
+):
+    """Get item predictions for the current user"""
+    # If shopping_list_id provided, verify access
+    if shopping_list_id:
+        shopping_list = db.query(ShoppingList).filter(
+            ShoppingList.id == shopping_list_id
+        ).first()
+        
+        if not shopping_list:
+            raise HTTPException(status_code=404, detail="Shopping list not found")
+        
+        if not any(h.id == shopping_list.household_id for h in current_user.households):
+            raise HTTPException(status_code=403, detail="Access denied")
     
-    # Get purchase history for the household
-    purchase_history = db.query(PurchaseHistory).filter(
-        PurchaseHistory.household_id == current_user.household_id
-    ).order_by(PurchaseHistory.frequency.desc()).limit(10).all()
-    
-    # If no history, return some default predictions
-    if not purchase_history:
-        return [
-            {"name": "Milk", "confidence": 0.95, "last_purchased": datetime.utcnow() - timedelta(days=6)},
-            {"name": "Bread", "confidence": 0.88, "last_purchased": datetime.utcnow() - timedelta(days=4)},
-            {"name": "Eggs", "confidence": 0.75, "last_purchased": datetime.utcnow() - timedelta(days=8)},
-            {"name": "Apples", "confidence": 0.65, "last_purchased": datetime.utcnow() - timedelta(days=10)},
-            {"name": "Coffee", "confidence": 0.60, "last_purchased": datetime.utcnow() - timedelta(days=12)}
-        ]
-    
-    # Convert history to predictions
-    predictions = []
-    for item in purchase_history:
-        # Simple algorithm: higher frequency means higher confidence
-        confidence = min(item.frequency / 10, 0.95)  # Cap at 0.95
-        predictions.append({
-            "name": item.item_name,
-            "confidence": confidence,
-            "last_purchased": item.purchase_date
-        })
-    
-    return predictions
+    prediction_service = PredictionService(db)
+    return prediction_service.get_predictions(
+        user=current_user,
+        shopping_list_id=shopping_list_id,
+        limit=limit
+    )

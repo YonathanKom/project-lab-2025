@@ -4,6 +4,7 @@ import '../../models/shopping_list.dart';
 import '../../api/services/shopping_list_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/constants.dart';
+import '../../widgets/predictions/predictions_list.dart';
 import '../../widgets/theme_toggle.dart';
 import '../items/add_edit_item_screen.dart';
 import 'price_comparison_screen.dart';
@@ -208,6 +209,12 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
               onRefresh: _loadShoppingList,
               child: ListView(
                 children: [
+                  if (!_isLoading)
+                    PredictionsList(
+                      shoppingList: _shoppingList,
+                      onItemAdded: _loadShoppingList,
+                    ),
+                  const SizedBox(height: 16),
                   if (unpurchasedItems.isEmpty && purchasedItems.isEmpty)
                     const Padding(
                       padding: EdgeInsets.all(32),
