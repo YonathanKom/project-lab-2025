@@ -1,15 +1,15 @@
 from fastapi import FastAPI
-from app.api.api_v1.api import api_router
+from app.api.api import api_router
 from app.core.config import settings
 
 app = FastAPI(
     title="Household Shopping List API",
     description="API for managing household shopping lists with smart predictions and price comparisons",
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_STR}/openapi.json"
 )
 
-app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(api_router, prefix=settings.API_STR)
 
 if __name__ == "__main__":
     import uvicorn

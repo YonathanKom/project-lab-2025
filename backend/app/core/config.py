@@ -1,10 +1,11 @@
 import secrets
-from typing import Any, Dict, List, Optional, Union
-from pydantic import AnyHttpUrl, PostgresDsn, validator
+from typing import List, Union
+from pydantic import AnyHttpUrl, validator
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
-    API_V1_STR: str = "/api/v1"
+    API_STR: str = "/api"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     # 60 minutes * 24 hours * 8 days = 8 days
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
 
     # Database configurations
     SQLALCHEMY_DATABASE_URL: str = "sqlite:///./shopping_list.db"
-    
+
     # JWT token generation algorithm
     ALGORITHM: str = "HS256"
 

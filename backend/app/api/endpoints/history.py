@@ -1,14 +1,15 @@
 from typing import List, Optional
 from datetime import datetime
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
+from sqlalchemy import or_, func
 
-from ... import deps
-from ....models.models import User, ShoppingItem, ShoppingList, ItemPrice, Store, Chain
-from ....schemas.schemas import HistoryItem, HistoryStats
+from app.api import deps
+from app.models import User, ShoppingItem, ShoppingList, ItemPrice, Store, Chain
+from app.schemas import HistoryItem, HistoryStats
 
 router = APIRouter()
+
 
 @router.get("/history", response_model=List[HistoryItem])
 def get_purchase_history(
@@ -20,58 +21,56 @@ def get_purchase_history(
     household_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(20, le=100)
+    limit: int = Query(20, le=100),
 ):
     """Get purchase history for the user's households"""
-    
+
     # Base query
-    query = db.query(
-        ShoppingItem.id,
-        ShoppingItem.name.label("item_name"),
-        ShoppingItem.item_code,
-        ShoppingItem.quantity,
-        ShoppingItem.price,
-        ShoppingItem.purchased_at,
-        User.username.label("purchased_by"),
-        ShoppingList.name.label("shopping_list_name"),
-        ShoppingList.id.label("shopping_list_id"),
-    ).join(
-        ShoppingList, ShoppingItem.shopping_list_id == ShoppingList.id
-    ).join(
-        User, ShoppingItem.purchased_by_id == User.id
-    ).filter(
-        ShoppingItem.is_purchased == True,
-        ShoppingItem.purchased_at.isnot(None)
+    query = (
+        db.query(
+            ShoppingItem.id,
+            ShoppingItem.name.label("item_name"),
+            ShoppingItem.item_code,
+            ShoppingItem.quantity,
+            ShoppingItem.price,
+            ShoppingItem.purchased_at,
+            User.username.label("purchased_by"),
+            ShoppingList.name.label("shopping_list_name"),
+            ShoppingList.id.label("shopping_list_id"),
+        )
+        .join(ShoppingList, ShoppingItem.shopping_list_id == ShoppingList.id)
+        .join(User, ShoppingItem.purchased_by_id == User.id)
+        .filter(ShoppingItem.is_purchased, ShoppingItem.purchased_at.isnot(None))
     )
-    
+
     # Filter by user's households
     user_household_ids = [h.id for h in current_user.households]
     if household_id and household_id in user_household_ids:
         query = query.filter(ShoppingList.household_id == household_id)
     else:
         query = query.filter(ShoppingList.household_id.in_(user_household_ids))
-    
+
     # Date filters
     if start_date:
         query = query.filter(ShoppingItem.purchased_at >= start_date)
     if end_date:
         query = query.filter(ShoppingItem.purchased_at <= end_date)
-    
+
     # Search filter
     if search:
         query = query.filter(
             or_(
                 ShoppingItem.name.ilike(f"%{search}%"),
-                ShoppingList.name.ilike(f"%{search}%")
+                ShoppingList.name.ilike(f"%{search}%"),
             )
         )
-    
+
     # Order by purchase date descending
     query = query.order_by(ShoppingItem.purchased_at.desc())
-    
+
     # Execute query
     items = query.offset(skip).limit(limit).all()
-    
+
     # Convert to response model and add store info if available
     result = []
     for item in items:
@@ -86,30 +85,29 @@ def get_purchase_history(
             "shopping_list_name": item.shopping_list_name,
             "shopping_list_id": item.shopping_list_id,
             "store_name": None,
-            "chain_name": None
+            "chain_name": None,
         }
-        
+
         # Try to get store info from price data if item has code
         if item.item_code and item.price:
-            price_info = db.query(
-                Store.name.label("store_name"),
-                Chain.name.label("chain_name")
-            ).join(
-                ItemPrice, Store.id == ItemPrice.store_id
-            ).join(
-                Chain, Store.chain_id == Chain.chain_id
-            ).filter(
-                ItemPrice.item_code == item.item_code,
-                ItemPrice.price == item.price
-            ).first()
-            
+            price_info = (
+                db.query(Store.name.label("store_name"), Chain.name.label("chain_name"))
+                .join(ItemPrice, Store.id == ItemPrice.store_id)
+                .join(Chain, Store.chain_id == Chain.chain_id)
+                .filter(
+                    ItemPrice.item_code == item.item_code, ItemPrice.price == item.price
+                )
+                .first()
+            )
+
             if price_info:
                 history_item["store_name"] = price_info.store_name
                 history_item["chain_name"] = price_info.chain_name
-        
+
         result.append(HistoryItem(**history_item))
-    
+
     return result
+
 
 @router.get("/history/stats", response_model=HistoryStats)
 def get_history_stats(
@@ -118,41 +116,43 @@ def get_history_stats(
     current_user: User = Depends(deps.get_current_user),
     start_date: Optional[datetime] = Query(None),
     end_date: Optional[datetime] = Query(None),
-    household_id: Optional[int] = Query(None)
+    household_id: Optional[int] = Query(None),
 ):
     """Get purchase history statistics"""
-    
+
     # Base query
-    query = db.query(
-        func.count(ShoppingItem.id).label("total_items"),
-        func.sum(ShoppingItem.price * ShoppingItem.quantity).label("total_spent"),
-        func.avg(ShoppingItem.price).label("avg_price")
-    ).join(
-        ShoppingList, ShoppingItem.shopping_list_id == ShoppingList.id
-    ).filter(
-        ShoppingItem.is_purchased == True,
-        ShoppingItem.purchased_at.isnot(None),
-        ShoppingItem.price.isnot(None)
+    query = (
+        db.query(
+            func.count(ShoppingItem.id).label("total_items"),
+            func.sum(ShoppingItem.price * ShoppingItem.quantity).label("total_spent"),
+            func.avg(ShoppingItem.price).label("avg_price"),
+        )
+        .join(ShoppingList, ShoppingItem.shopping_list_id == ShoppingList.id)
+        .filter(
+            ShoppingItem.is_purchased is True,
+            ShoppingItem.purchased_at.isnot(None),
+            ShoppingItem.price.isnot(None),
+        )
     )
-    
+
     # Filter by user's households
     user_household_ids = [h.id for h in current_user.households]
     if household_id and household_id in user_household_ids:
         query = query.filter(ShoppingList.household_id == household_id)
     else:
         query = query.filter(ShoppingList.household_id.in_(user_household_ids))
-    
+
     # Date filters
     if start_date:
         query = query.filter(ShoppingItem.purchased_at >= start_date)
     if end_date:
         query = query.filter(ShoppingItem.purchased_at <= end_date)
-    
+
     # Execute query
     stats = query.first()
-    
+
     return HistoryStats(
         total_items=stats.total_items or 0,
         total_spent=float(stats.total_spent or 0),
-        avg_price=float(stats.avg_price or 0)
+        avg_price=float(stats.avg_price or 0),
     )

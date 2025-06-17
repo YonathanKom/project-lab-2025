@@ -9,9 +9,10 @@ from app.api.deps import authenticate_user
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token
-from app.schemas.schemas import Token
+from app.schemas import Token
 
 router = APIRouter()
+
 
 @router.post("/login/access-token", response_model=Token)
 def login_access_token(

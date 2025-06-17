@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.api_v1.endpoints import users, auth, households, shopping_lists, items, history, predictions, prices
+from app.api.endpoints import users, auth, households, shopping_lists, items, history, predictions, prices
 
 api_router = APIRouter()
 api_router.include_router(auth.router, tags=["authentication"])

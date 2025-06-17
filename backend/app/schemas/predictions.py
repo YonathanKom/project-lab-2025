@@ -3,12 +3,14 @@ from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
+
 class PredictionReason(str, Enum):
     FREQUENTLY_BOUGHT = "frequently_bought"
     HOUSEHOLD_FAVORITE = "household_favorite"
     RECENTLY_PURCHASED = "recently_purchased"
     SEASONAL = "seasonal"
     COMPLEMENTARY = "complementary"
+
 
 class ItemPrediction(BaseModel):
     item_code: Optional[str]
@@ -23,9 +25,10 @@ class ItemPrediction(BaseModel):
     current_price: Optional[float]
     store_name: Optional[str]
     chain_name: Optional[str]
-    
+
     class Config:
-        orm_mode = True
+        from_attributes = True
+
 
 class PredictionsResponse(BaseModel):
     shopping_list_id: Optional[int]
