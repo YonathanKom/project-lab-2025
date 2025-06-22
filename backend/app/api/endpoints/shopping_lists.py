@@ -15,7 +15,7 @@ from app.schemas import (
 router = APIRouter()
 
 
-@router.post("/", response_model=ShoppingListSchema)
+@router.post("", response_model=ShoppingListSchema)
 def create_shopping_list(
     shopping_list_in: ShoppingListCreate,
     db: Session = Depends(get_db),
@@ -42,7 +42,7 @@ def create_shopping_list(
     return db_shopping_list
 
 
-@router.get("/", response_model=List[ShoppingListSchema])
+@router.get("", response_model=List[ShoppingListSchema])
 def get_shopping_lists(
     household_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),

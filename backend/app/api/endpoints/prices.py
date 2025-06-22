@@ -62,7 +62,7 @@ def get_chains(
     db: Session = Depends(get_db),
 ):
     """Get all available chains."""
-    from ....models.models import Chain as ChainModel
+    from app.models import Chain as ChainModel
 
     chains = db.query(ChainModel).offset(skip).limit(limit).all()
     return chains
@@ -77,7 +77,7 @@ def get_stores(
     db: Session = Depends(get_db),
 ):
     """Get stores, optionally filtered by chain."""
-    from ....models.models import Store as StoreModel
+    from app.models import Store as StoreModel
 
     query = db.query(StoreModel)
     if chain_id:
@@ -121,7 +121,7 @@ def get_item(
     db: Session = Depends(get_db),
 ):
     """Get item details by item code."""
-    from ....models.models import Item as ItemModel
+    from app.models import Item as ItemModel
 
     item = db.query(ItemModel).filter(ItemModel.item_code == item_code).first()
     if not item:
@@ -155,7 +155,7 @@ def get_popular_items(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from ....models.models import Item as ItemModel, ItemPrice
+    from app.models import Item as ItemModel, ItemPrice
 
     # Step 1: Subquery to get most popular item codes by price count
     subq = (

@@ -17,8 +17,8 @@ class PredictionService {
       if (shoppingListId != null) 'shopping_list_id': shoppingListId.toString(),
     };
 
-    final uri = Uri.parse('$baseUrl/predictions/predictions')
-        .replace(queryParameters: queryParams);
+    final uri =
+        Uri.parse('$baseUrl/predictions').replace(queryParameters: queryParams);
 
     final response = await http.get(
       uri,

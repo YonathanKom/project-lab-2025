@@ -23,8 +23,8 @@ class HistoryService {
     if (skip != null) queryParams['skip'] = skip.toString();
     if (limit != null) queryParams['limit'] = limit.toString();
 
-    final uri = Uri.parse('$baseUrl/history/history')
-        .replace(queryParameters: queryParams);
+    final uri =
+        Uri.parse('$baseUrl/history').replace(queryParameters: queryParams);
 
     final response = await http.get(
       uri,
@@ -52,7 +52,7 @@ class HistoryService {
       queryParams.addAll(filter.toQueryParams());
     }
 
-    final uri = Uri.parse('$baseUrl/history/history/stats')
+    final uri = Uri.parse('$baseUrl/history/stats')
         .replace(queryParameters: queryParams);
 
     final response = await http.get(

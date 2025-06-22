@@ -35,7 +35,7 @@ def is_household_admin(db: Session, user_id: int, household_id: int) -> bool:
     return user_role and user_role[0] == "admin"
 
 
-@router.post("/", response_model=HouseholdSchema)
+@router.post("", response_model=HouseholdSchema)
 def create_household(
     household_in: HouseholdCreate,
     db: Session = Depends(get_db),
@@ -146,7 +146,7 @@ def leave_household(
     return {"message": "Successfully left household"}
 
 
-@router.get("/", response_model=List[HouseholdSchema])
+@router.get("", response_model=List[HouseholdSchema])
 def get_user_households(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

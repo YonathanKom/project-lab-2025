@@ -11,7 +11,7 @@ from app.models import ShoppingList
 router = APIRouter()
 
 
-@router.get("/predictions", response_model=PredictionsResponse)
+@router.get("", response_model=PredictionsResponse)
 def get_predictions(
     shopping_list_id: Optional[int] = Query(
         None, description="Shopping list to get predictions for"

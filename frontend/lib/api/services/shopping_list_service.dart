@@ -12,7 +12,7 @@ class ShoppingListService {
     int? householdId,
   }) async {
     try {
-      String url = '$baseUrl/shopping-lists/';
+      String url = '$baseUrl/shopping-lists';
       if (householdId != null) {
         url += '?household_id=$householdId';
       }
@@ -137,7 +137,7 @@ class ShoppingListService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/items/$listId/items'),
+        Uri.parse('$baseUrl/items/$listId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -163,7 +163,7 @@ class ShoppingListService {
   }) async {
     try {
       final response = await http.put(
-        Uri.parse('$baseUrl/items/$listId/items/$itemId'),
+        Uri.parse('$baseUrl/items/$listId/$itemId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -188,7 +188,7 @@ class ShoppingListService {
   }) async {
     try {
       final response = await http.delete(
-        Uri.parse('$baseUrl/items/$listId/items/$itemId'),
+        Uri.parse('$baseUrl/items/$listId/$itemId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ class ShoppingListService {
   }) async {
     try {
       final response = await http.patch(
-        Uri.parse('$baseUrl/items/$listId/items/$itemId/toggle'),
+        Uri.parse('$baseUrl/items/$listId/$itemId/toggle'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

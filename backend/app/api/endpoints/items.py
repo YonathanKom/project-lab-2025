@@ -11,7 +11,7 @@ from app.api.deps import get_current_user
 router = APIRouter()
 
 
-@router.post("/{list_id}/items", response_model=schemas.ShoppingItemInDB)
+@router.post("/{list_id}", response_model=schemas.ShoppingItemInDB)
 def create_shopping_item(
     list_id: int,
     item_in: schemas.ShoppingItemCreate,
@@ -48,7 +48,7 @@ def create_shopping_item(
     return db_item
 
 
-@router.get("/{list_id}/items", response_model=List[schemas.ShoppingItemInDB])
+@router.get("/{list_id}", response_model=List[schemas.ShoppingItemInDB])
 def get_shopping_items(
     list_id: int,
     skip: int = 0,
@@ -88,7 +88,7 @@ def get_shopping_items(
     return items
 
 
-@router.put("/{list_id}/items/{item_id}", response_model=schemas.ShoppingItemInDB)
+@router.put("/{list_id}/{item_id}", response_model=schemas.ShoppingItemInDB)
 def update_shopping_item(
     list_id: int,
     item_id: int,
@@ -131,7 +131,7 @@ def update_shopping_item(
     return item
 
 
-@router.delete("/{list_id}/items/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{list_id}/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_shopping_item(
     list_id: int,
     item_id: int,
@@ -168,9 +168,7 @@ def delete_shopping_item(
     return None
 
 
-@router.patch(
-    "/{list_id}/items/{item_id}/toggle", response_model=schemas.ShoppingItemInDB
-)
+@router.patch("/{list_id}/{item_id}/toggle", response_model=schemas.ShoppingItemInDB)
 def toggle_item_purchased(
     list_id: int,
     item_id: int,
@@ -218,7 +216,7 @@ def toggle_item_purchased(
     return item
 
 
-@router.post("/{list_id}/items/batch", response_model=List[schemas.ShoppingItemInDB])
+@router.post("/{list_id}/batch", response_model=List[schemas.ShoppingItemInDB])
 def create_shopping_items_batch(
     list_id: int,
     items_in: List[schemas.ShoppingItemCreate],

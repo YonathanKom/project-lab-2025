@@ -14,7 +14,7 @@ class HouseholdService {
       String name, String token) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl/households/'),
+        Uri.parse('$baseUrl/households'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
@@ -32,7 +32,7 @@ class HouseholdService {
   Future<Map<String, dynamic>> getUserHouseholds(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl/households/'),
+        Uri.parse('$baseUrl/households'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',

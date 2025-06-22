@@ -12,7 +12,7 @@ from app.schemas import User as UserSchema, UserCreate, UserUpdate
 router = APIRouter()
 
 
-@router.post("/", response_model=UserSchema)
+@router.post("", response_model=UserSchema)
 def create_new_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
     """
     Create new user

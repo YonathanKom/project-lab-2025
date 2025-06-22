@@ -11,7 +11,7 @@ from app.schemas import HistoryItem, HistoryStats
 router = APIRouter()
 
 
-@router.get("/history", response_model=List[HistoryItem])
+@router.get("", response_model=List[HistoryItem])
 def get_purchase_history(
     *,
     db: Session = Depends(deps.get_db),
@@ -109,7 +109,7 @@ def get_purchase_history(
     return result
 
 
-@router.get("/history/stats", response_model=HistoryStats)
+@router.get("/stats", response_model=HistoryStats)
 def get_history_stats(
     *,
     db: Session = Depends(deps.get_db),
