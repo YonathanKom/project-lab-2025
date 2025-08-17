@@ -30,9 +30,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
   int? _selectedHouseholdId;
   final TextEditingController _searchController = TextEditingController();
 
-  // Stats
-  Map<String, dynamic>? _stats;
-
   // Pagination
   static const int _pageSize = 20;
   int _currentPage = 0;
@@ -106,21 +103,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final token = authProvider.token;
 
       if (token == null) return;
-
-      final filter = HistoryFilter(
-        startDate: _startDate,
-        endDate: _endDate,
-        householdId: _selectedHouseholdId,
-      );
-
-      final stats = await _historyService.getHistoryStats(
-        token: token,
-        filter: filter,
-      );
-
-      setState(() {
-        _stats = stats;
-      });
     } catch (e) {
       // Silently fail for stats
     }
@@ -162,48 +144,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          if (_stats != null) _buildStatsCard(),
           _buildSearchBar(),
           Expanded(child: _buildHistoryList()),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatsCard() {
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildStatItem(
-                'Total Items', _stats!['total_items']?.toString() ?? '0'),
-            _buildStatItem('Total Spent',
-                '₪${_stats!['total_spent']?.toStringAsFixed(2) ?? '0.00'}'),
-            _buildStatItem('Avg Price',
-                '₪${_stats!['avg_price']?.toStringAsFixed(2) ?? '0.00'}'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ],
     );
   }
 

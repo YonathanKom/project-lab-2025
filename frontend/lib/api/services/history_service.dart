@@ -41,32 +41,4 @@ class HistoryService {
       throw Exception('Failed to load history: ${response.body}');
     }
   }
-
-  Future<Map<String, dynamic>> getHistoryStats({
-    required String token,
-    HistoryFilter? filter,
-  }) async {
-    final queryParams = <String, dynamic>{};
-
-    if (filter != null) {
-      queryParams.addAll(filter.toQueryParams());
-    }
-
-    final uri = Uri.parse('$baseUrl/history/stats')
-        .replace(queryParameters: queryParams);
-
-    final response = await http.get(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to load history stats: ${response.body}');
-    }
-  }
 }

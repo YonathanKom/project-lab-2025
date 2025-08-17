@@ -1,6 +1,9 @@
+import 'package:fastflutter/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../models/shopping_list.dart';
+import '../../api/services/shopping_list_service.dart';
 import '../../widgets/theme_toggle.dart';
 import '../../widgets/common/app_drawer.dart';
 import '../../utils/routes.dart';
@@ -13,47 +16,48 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  late ShoppingListService _shoppingListService;
+  List<ShoppingList> _shoppingLists = [];
   bool _isLoading = false;
-
-  // Mock data for shopping lists - TODO: Replace with API service
-  final List<Map<String, dynamic>> _shoppingLists = [
-    {
-      'id': 1,
-      'name': 'Weekly Groceries',
-      'itemCount': 12,
-      'completedCount': 8,
-      'createdAt': DateTime.now().subtract(const Duration(days: 2)),
-    },
-    {
-      'id': 2,
-      'name': 'Party Supplies',
-      'itemCount': 8,
-      'completedCount': 3,
-      'createdAt': DateTime.now().subtract(const Duration(days: 5)),
-    },
-    {
-      'id': 3,
-      'name': 'Household Items',
-      'itemCount': 6,
-      'completedCount': 6,
-      'createdAt': DateTime.now().subtract(const Duration(days: 1)),
-    },
-  ];
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _shoppingListService = ShoppingListService(baseUrl);
     _loadDashboardData();
   }
 
   Future<void> _loadDashboardData() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    // TODO: Implement API call to fetch shopping lists
-    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final token = authProvider.token;
 
-    if (mounted) {
-      setState(() => _isLoading = false);
+      if (token == null) {
+        throw Exception('No authentication token');
+      }
+
+      // Fetch all shopping lists for the user (across all households)
+      final lists = await _shoppingListService.getShoppingLists(token: token);
+
+      if (mounted) {
+        setState(() {
+          _shoppingLists = lists;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -69,95 +73,175 @@ class _DashboardScreenState extends State<DashboardScreen> {
       drawer: const AppDrawer(),
       body: RefreshIndicator(
         onRefresh: _loadDashboardData,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Welcome Card
-            Consumer<AuthProvider>(
-              builder: (context, authProvider, child) {
-                final user = authProvider.user;
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: Theme.of(context).primaryColor,
-                          child: const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 30,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Welcome back, ${user?.username ?? 'User'}!',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text(
-                                'Here\'s your shopping overview',
-                                style: TextStyle(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            // Stats Section
-            _buildStatsSection(),
-
-            const SizedBox(height: 24),
-
-            // Shopping Lists Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Recent Shopping Lists',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pushNamed(Routes.shoppingLists);
-                  },
-                  child: const Text('View All'),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            // Shopping Lists
-            ..._buildShoppingLists(_isLoading),
-          ],
-        ),
+        child: _buildBody(),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implement navigation to create new shopping list
-          Navigator.of(context).pushNamed(Routes.shoppingLists);
+        onPressed: () async {
+          final result =
+              await Navigator.of(context).pushNamed(Routes.shoppingLists);
+          // Refresh dashboard if a new list was created
+          if (result == true) {
+            _loadDashboardData();
+          }
         },
         child: const Icon(Icons.add),
       ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading && _shoppingLists.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null && _shoppingLists.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load dashboard',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadDashboardData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Welcome Card
+        Consumer<AuthProvider>(
+          builder: (context, authProvider, child) {
+            final user = authProvider.user;
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Theme.of(context).primaryColor,
+                      child: const Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome back, ${user?.username ?? 'User'}!',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Here\'s your shopping overview',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+
+        const SizedBox(height: 16),
+
+        // Stats Section
+        _buildStatsSection(),
+
+        const SizedBox(height: 24),
+
+        // Shopping Lists Section
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Shopping Lists',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () async {
+                final result =
+                    await Navigator.of(context).pushNamed(Routes.shoppingLists);
+                if (result == true) {
+                  _loadDashboardData();
+                }
+              },
+              child: const Text('View All'),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Shopping Lists
+        if (_isLoading && _shoppingLists.isNotEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+
+        ..._buildShoppingLists(),
+
+        if (_errorMessage != null && _shoppingLists.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning,
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Error refreshing: $_errorMessage',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -165,11 +249,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final totalLists = _shoppingLists.length;
     final totalItems = _shoppingLists.fold<int>(
       0,
-      (sum, list) => sum + (list['itemCount'] as int),
+      (sum, list) => sum + (list.items.length),
     );
     final completedItems = _shoppingLists.fold<int>(
       0,
-      (sum, list) => sum + (list['completedCount'] as int),
+      (sum, list) =>
+          sum + (list.items.where((item) => item.isPurchased).length),
     );
 
     return Row(
@@ -238,19 +323,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  List<Widget> _buildShoppingLists(bool isLoading) {
-    if (isLoading) {
-      return [
-        const Center(
-          child: Padding(
-            padding: EdgeInsets.all(32),
-            child: CircularProgressIndicator(),
-          ),
-        ),
-      ];
-    }
-
-    if (_shoppingLists.isEmpty) {
+  List<Widget> _buildShoppingLists() {
+    if (_shoppingLists.isEmpty && !_isLoading) {
       return [
         Card(
           child: Padding(
@@ -284,8 +358,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ];
     }
 
-    return _shoppingLists.map((list) {
-      final progress = list['completedCount'] / list['itemCount'];
+    // Show up to 3 most recent lists on dashboard
+    final recentLists = _shoppingLists.take(3).toList();
+
+    return recentLists.map((list) {
+      final totalItems = list.items.length;
+      final completedItems =
+          list.items.where((item) => item.isPurchased).length;
+      final progress = totalItems > 0 ? completedItems / totalItems : 0.0;
       final progressColor = _getProgressColor(progress);
 
       return Card(
@@ -299,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
           title: Text(
-            list['name'],
+            list.name,
             style: const TextStyle(fontWeight: FontWeight.w500),
           ),
           subtitle: Column(
@@ -307,7 +387,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             children: [
               const SizedBox(height: 4),
               Text(
-                '${list['completedCount']}/${list['itemCount']} items completed',
+                '$completedItems/$totalItems items completed',
               ),
               const SizedBox(height: 4),
               LinearProgressIndicator(
@@ -315,16 +395,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 backgroundColor: Colors.grey[300],
                 valueColor: AlwaysStoppedAnimation<Color>(progressColor),
               ),
+              const SizedBox(height: 4),
+              Text(
+                _formatDate(list.createdAt),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
             ],
           ),
           trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          onTap: () {
-            // TODO: Navigate to shopping list detail
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Opening ${list['name']} - Coming soon!'),
-              ),
+          onTap: () async {
+            // Navigate to shopping list detail
+            final result = await Navigator.pushNamed(
+              context,
+              Routes.shoppingListDetails,
+              arguments: {'shoppingList': list},
             );
+
+            // Refresh dashboard if list was modified
+            if (result == true) {
+              _loadDashboardData();
+            }
           },
         ),
       );
@@ -335,5 +428,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (progress >= 1.0) return Colors.green;
     if (progress >= 0.7) return Colors.orange;
     return Colors.blue;
+  }
+
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inDays == 0) {
+      return 'Today';
+    } else if (difference.inDays == 1) {
+      return 'Yesterday';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${date.day}/${date.month}/${date.year}';
+    }
   }
 }

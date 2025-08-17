@@ -74,12 +74,6 @@ class AppDrawer extends StatelessWidget {
                 ),
                 _buildDrawerItem(
                   context,
-                  icon: Icons.inventory,
-                  title: 'Items',
-                  route: Routes.items,
-                ),
-                _buildDrawerItem(
-                  context,
                   icon: Icons.history,
                   title: 'History',
                   route: Routes.history,
@@ -89,25 +83,6 @@ class AppDrawer extends StatelessWidget {
                   icon: Icons.home,
                   title: 'Household',
                   route: Routes.household,
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.settings,
-                  title: 'Settings',
-                  route: Routes.settings,
-                ),
-                const Divider(),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.help_outline,
-                  title: 'Help & Support',
-                  route: Routes.help,
-                ),
-                _buildDrawerItem(
-                  context,
-                  icon: Icons.info_outline,
-                  title: 'About',
-                  route: Routes.about,
                 ),
               ],
             ),

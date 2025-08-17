@@ -7,11 +7,7 @@ import '../screens/household/household_screen.dart';
 import '../screens/items/add_edit_item_screen.dart';
 import '../screens/shopping_lists/shopping_list_details_screen.dart';
 import '../screens/shopping_lists/shopping_lists_screen.dart';
-import '../screens/items/items_screen.dart';
 import '../screens/history/history_screen.dart';
-import '../screens/settings/settings_screen.dart';
-import '../screens/help/help_screen.dart';
-import '../screens/about/about_screen.dart';
 
 class Routes {
   // Route constants
@@ -36,12 +32,8 @@ class Routes {
       register: (context) => const RegisterScreen(),
       dashboard: (context) => const DashboardScreen(),
       shoppingLists: (context) => const ShoppingListsScreen(),
-      items: (context) => const ItemsScreen(),
       history: (context) => const HistoryScreen(),
       household: (context) => const HouseholdScreen(),
-      settings: (context) => const SettingsScreen(),
-      help: (context) => const HelpScreen(),
-      about: (context) => const AboutScreen(),
       Routes.shoppingListDetails: (context) {
         final args =
             ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>;

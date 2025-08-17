@@ -85,14 +85,14 @@ class PriceService:
 
         try:
             price_update_str = get_text("PriceUpdateDate")
-            price_update_date = datetime.strptime(price_update_str, "%Y-%m-%d %H:%M:%S")
+            price_update_date = datetime.strptime(price_update_str, "%Y-%m-%d %H:%M")
 
             return {
                 "item_code": get_text("ItemCode"),
                 "item_type": int(get_text("ItemType")),
                 "name": get_text(["ItemNm", "ItemName"]),
-                "manufacturer_name": get_text("ManufacturerName"),
-                "manufacture_country": get_text("ManufactureCountry"),
+                "manufacturer_name": get_text("ManufacturerName", required=False),
+                "manufacture_country": get_text("ManufactureCountry", required=False),
                 "manufacturer_description": get_text("ManufacturerItemDescription"),
                 "unit_qty": get_text("UnitQty"),
                 "quantity": to_float(get_text("Quantity", required=False)),

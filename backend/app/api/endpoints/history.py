@@ -2,11 +2,11 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 
 from app.api import deps
 from app.models import User, ShoppingItem, ShoppingList, ItemPrice, Store, Chain
-from app.schemas import HistoryItem, HistoryStats
+from app.schemas import HistoryItem
 
 router = APIRouter()
 
@@ -107,52 +107,3 @@ def get_purchase_history(
         result.append(HistoryItem(**history_item))
 
     return result
-
-
-@router.get("/stats", response_model=HistoryStats)
-def get_history_stats(
-    *,
-    db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
-    start_date: Optional[datetime] = Query(None),
-    end_date: Optional[datetime] = Query(None),
-    household_id: Optional[int] = Query(None),
-):
-    """Get purchase history statistics"""
-
-    # Base query
-    query = (
-        db.query(
-            func.count(ShoppingItem.id).label("total_items"),
-            func.sum(ShoppingItem.price * ShoppingItem.quantity).label("total_spent"),
-            func.avg(ShoppingItem.price).label("avg_price"),
-        )
-        .join(ShoppingList, ShoppingItem.shopping_list_id == ShoppingList.id)
-        .filter(
-            ShoppingItem.is_purchased is True,
-            ShoppingItem.purchased_at.isnot(None),
-            ShoppingItem.price.isnot(None),
-        )
-    )
-
-    # Filter by user's households
-    user_household_ids = [h.id for h in current_user.households]
-    if household_id and household_id in user_household_ids:
-        query = query.filter(ShoppingList.household_id == household_id)
-    else:
-        query = query.filter(ShoppingList.household_id.in_(user_household_ids))
-
-    # Date filters
-    if start_date:
-        query = query.filter(ShoppingItem.purchased_at >= start_date)
-    if end_date:
-        query = query.filter(ShoppingItem.purchased_at <= end_date)
-
-    # Execute query
-    stats = query.first()
-
-    return HistoryStats(
-        total_items=stats.total_items or 0,
-        total_spent=float(stats.total_spent or 0),
-        avg_price=float(stats.avg_price or 0),
-    )
