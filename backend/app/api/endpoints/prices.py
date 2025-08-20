@@ -1,6 +1,15 @@
 # backend/app/api/api_v1/endpoints/prices.py
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    File,
+    Form,
+    Query,
+)
 from sqlalchemy import func, desc
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -209,15 +218,21 @@ def get_popular_items(
     return result
 
 
+# Update existing endpoint
 @router.get(
     "/shopping-lists/{list_id}/compare", response_model=ShoppingListPriceComparison
 )
 def compare_shopping_list_prices(
     list_id: int,
+    user_lat: Optional[float] = Query(None, description="User latitude (-90 to 90)"),
+    user_lon: Optional[float] = Query(None, description="User longitude (-180 to 180)"),
+    radius_km: Optional[float] = Query(
+        None, ge=1, le=100, description="Search radius in kilometers"
+    ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Compare shopping list prices across different stores"""
+    """Compare shopping list prices with optional location filtering"""
     # Verify user has access to this shopping list
     shopping_list = db.query(ShoppingList).filter(ShoppingList.id == list_id).first()
 
@@ -228,8 +243,28 @@ def compare_shopping_list_prices(
     if not any(h.id == shopping_list.household_id for h in current_user.households):
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Validate location parameters (all or none)
+    if any(param is not None for param in [user_lat, user_lon, radius_km]):
+        if any(param is None for param in [user_lat, user_lon, radius_km]):
+            raise HTTPException(
+                status_code=400,
+                detail="user_lat, user_lon, and radius_km must all be provided together or not at all",
+            )
+
+        # Validate coordinate ranges
+        if not (-90 <= user_lat <= 90):
+            raise HTTPException(
+                status_code=400, detail="Latitude must be between -90 and 90"
+            )
+        if not (-180 <= user_lon <= 180):
+            raise HTTPException(
+                status_code=400, detail="Longitude must be between -180 and 180"
+            )
+
     price_service = PriceService(db)
-    comparison = price_service.compare_shopping_list_prices(list_id)
+    comparison = price_service.compare_shopping_list_prices(
+        list_id, user_lat, user_lon, radius_km
+    )
 
     if not comparison:
         raise HTTPException(

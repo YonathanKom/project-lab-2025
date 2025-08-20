@@ -338,9 +338,13 @@ class PriceService:
         return PriceComparisonResponse(item=item, prices=prices, stores=stores)
 
     def compare_shopping_list_prices(
-        self, shopping_list_id: int
+        self,
+        shopping_list_id: int,
+        user_lat: Optional[float] = None,
+        user_lon: Optional[float] = None,
+        radius_km: Optional[float] = None,
     ) -> Optional[ShoppingListPriceComparison]:
-        """Compare shopping list prices across all stores"""
+        """Compare shopping list prices across all stores with optional location filtering"""
         # Get shopping list with items
         shopping_list = (
             self.db.query(ShoppingList)
@@ -351,10 +355,31 @@ class PriceService:
         if not shopping_list:
             return None
 
-        # Get all stores with their chains
-        stores = self.db.query(Store).join(Chain).all()
+        # Base query for stores with their chains
+        stores_query = self.db.query(Store).join(Chain)
 
-        # Limit to top stores by item availability
+        # Apply location filtering if coordinates provided
+        if user_lat is not None and user_lon is not None and radius_km is not None:
+            # Haversine formula in SQL to calculate distance in kilometers
+            distance_formula = 6371 * func.acos(
+                func.sin(func.radians(user_lat))
+                * func.sin(func.radians(Store.latitude))
+                + func.cos(func.radians(user_lat))
+                * func.cos(func.radians(Store.latitude))
+                * func.cos(func.radians(Store.longitude) - func.radians(user_lon))
+            )
+
+            # Filter stores within radius and with valid coordinates
+            stores_query = stores_query.filter(
+                Store.latitude.isnot(None),
+                Store.longitude.isnot(None),
+                distance_formula <= radius_km,
+            ).order_by(distance_formula)  # Sort by distance (closest first)
+
+        # Get filtered stores
+        stores = stores_query.all()
+
+        # Limit to top stores by item availability (existing logic)
         stores_with_prices = []
         for store in stores:
             price_count = (

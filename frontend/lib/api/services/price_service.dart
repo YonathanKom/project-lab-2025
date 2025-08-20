@@ -7,12 +7,28 @@ class PriceService {
 
   PriceService(this.baseUrl);
 
+  // Update existing method signature and implementation
   Future<ShoppingListPriceComparison> compareShoppingListPrices(
     int listId,
-    String token,
-  ) async {
+    String token, {
+    double? userLat,
+    double? userLon,
+    double? radiusKm,
+  }) async {
+    final queryParams = <String, String>{};
+
+    // Add location parameters if all are provided
+    if (userLat != null && userLon != null && radiusKm != null) {
+      queryParams['user_lat'] = userLat.toString();
+      queryParams['user_lon'] = userLon.toString();
+      queryParams['radius_km'] = radiusKm.toString();
+    }
+
+    final uri = Uri.parse('$baseUrl/prices/shopping-lists/$listId/compare')
+        .replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
     final response = await http.get(
-      Uri.parse('$baseUrl/prices/shopping-lists/$listId/compare'),
+      uri,
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',

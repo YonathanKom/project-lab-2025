@@ -6,6 +6,7 @@ import '../../models/price_comparison.dart';
 import '../../api/services/price_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/app_drawer.dart';
+import '../../widgets/location/location_input.dart';
 import '../../widgets/theme_toggle.dart';
 
 class PriceComparisonScreen extends StatefulWidget {
@@ -26,6 +27,9 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
   bool _isLoading = true;
   String? _errorMessage;
   int? _expandedStoreIndex;
+  double? _userLat;
+  double? _userLon;
+  double? _radiusKm;
 
   @override
   void initState() {
@@ -51,6 +55,9 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
       final comparison = await _priceService.compareShoppingListPrices(
         widget.shoppingList.id,
         token,
+        userLat: _userLat,
+        userLon: _userLon,
+        radiusKm: _radiusKm,
       );
 
       setState(() {
@@ -69,11 +76,33 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Price Comparison'),
+        title: const Text('Price Comparison'),
         actions: const [ThemeToggle()],
       ),
       drawer: const AppDrawer(),
-      body: _buildBody(),
+      body: Column(
+        children: [
+          LocationInput(
+            onLocationSet: (lat, lon, radius) {
+              setState(() {
+                _userLat = lat;
+                _userLon = lon;
+                _radiusKm = radius;
+              });
+              _loadPriceComparison();
+            },
+            onLocationCleared: () {
+              setState(() {
+                _userLat = null;
+                _userLon = null;
+                _radiusKm = null;
+              });
+              _loadPriceComparison();
+            },
+          ),
+          Expanded(child: _buildBody()),
+        ],
+      ),
     );
   }
 
@@ -148,12 +177,15 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
                       style: TextStyle(
                         fontWeight: isCheapest ? FontWeight.bold : null,
                       ),
+                      overflow: TextOverflow.ellipsis, // keeps it on one line
                     ),
                     subtitle: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                            '${store.storeName}${store.city != null ? ' - ${store.city}' : ''}'),
+                          '${store.storeName}${store.city != null ? ' - ${store.city}' : ''}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 4),
                         _buildAvailabilityIndicator(store),
                       ],
@@ -161,16 +193,22 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
                     trailing: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '₪${store.totalPrice.toStringAsFixed(2)}',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: isCheapest
-                                        ? Theme.of(context).colorScheme.primary
-                                        : null,
-                                  ),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '₪${store.totalPrice.toStringAsFixed(2)}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: isCheapest
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                          ),
                         ),
                         if (isCheapest)
                           Container(
@@ -262,28 +300,34 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
 
     return Row(
       children: [
-        Container(
-          width: 100,
-          height: 4,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(2),
-            color: Theme.of(context).dividerColor,
-          ),
-          child: FractionallySizedBox(
-            widthFactor: percentage / 100,
-            alignment: Alignment.centerLeft,
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(2),
-                color: color,
+        Expanded(
+          // <-- makes the bar take remaining space
+          child: Container(
+            height: 4,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              color: Theme.of(context).dividerColor,
+            ),
+            child: FractionallySizedBox(
+              widthFactor: percentage / 100,
+              alignment: Alignment.centerLeft,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(2),
+                  color: color,
+                ),
               ),
             ),
           ),
         ),
         const SizedBox(width: 8),
-        Text(
-          '${store.availableItems}/${store.itemsBreakdown.length} items',
-          style: Theme.of(context).textTheme.bodySmall,
+        Flexible(
+          // <-- allows the text to shrink if needed
+          child: Text(
+            '${store.availableItems}/${store.itemsBreakdown.length} items',
+            style: Theme.of(context).textTheme.bodySmall,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );

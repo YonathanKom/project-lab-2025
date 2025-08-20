@@ -69,7 +69,7 @@ class AppTheme {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: isLight ? surfaceLight : surfaceDark,
         elevation: 1,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -101,7 +101,7 @@ class AppTheme {
       iconTheme: IconThemeData(
         color: isLight ? textPrimaryLight : textPrimaryDark,
       ),
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: Colors.white, // Active tab label/icon color
         unselectedLabelColor: Colors.white70, // Inactive tab label/icon
         indicatorColor: Colors.white, // Underline color

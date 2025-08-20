@@ -310,11 +310,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              title,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
+            FittedBox(
+              fit: BoxFit.scaleDown, // Shrinks text to fit width
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
