@@ -35,6 +35,7 @@ class StoreComparison {
   final int availableItems;
   final List<String> missingItems;
   final List<ItemPriceBreakdown> itemsBreakdown;
+  final double? distanceKm;
 
   StoreComparison({
     required this.storeId,
@@ -45,6 +46,7 @@ class StoreComparison {
     required this.availableItems,
     required this.missingItems,
     required this.itemsBreakdown,
+    this.distanceKm,
   });
 
   factory StoreComparison.fromJson(Map<String, dynamic> json) {
@@ -59,12 +61,21 @@ class StoreComparison {
       itemsBreakdown: (json['items_breakdown'] as List)
           .map((e) => ItemPriceBreakdown.fromJson(e))
           .toList(),
+      distanceKm: json['distance_km']?.toDouble(),
     );
   }
 
   double get availabilityPercentage => itemsBreakdown.isEmpty
       ? 0
       : (availableItems / itemsBreakdown.length) * 100;
+
+  String get distanceDisplay {
+    if (distanceKm == null) return '';
+    if (distanceKm! < 1) {
+      return '${(distanceKm! * 1000).round()}m away';
+    }
+    return '${distanceKm!.toStringAsFixed(1)}km away';
+  }
 }
 
 class ItemPriceBreakdown {

@@ -7,7 +7,13 @@ from sqlalchemy import text
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models import User, Household, user_households, HouseholdInvitation
+from app.models import (
+    User,
+    Household,
+    user_households,
+    HouseholdInvitation,
+    ShoppingList,
+)
 from app.schemas import (
     Household as HouseholdSchema,
     HouseholdCreate,
@@ -131,18 +137,65 @@ def leave_household(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
-    """Leave household"""
+    """Leave household - deletes household if last member or if admin leaves"""
     if not user_in_household(current_user, household_id):
         raise HTTPException(status_code=404, detail="Not a member of this household")
 
-    # Remove user from household
+    # Get household to check member count
+    household = db.query(Household).filter(Household.id == household_id).first()
+    if not household:
+        raise HTTPException(status_code=404, detail="Household not found")
+
+    # Check if current user is admin
+    is_admin = is_household_admin(db, current_user.id, household_id)
+
+    # Count current members
+    member_count = (
+        db.query(user_households)
+        .filter(user_households.c.household_id == household_id)
+        .count()
+    )
+
+    # If admin is leaving or this is the last member, delete the entire household
+    if is_admin or member_count <= 1:
+        # Delete all shopping lists for this household
+        db.query(ShoppingList).filter(
+            ShoppingList.household_id == household_id
+        ).delete()
+
+        # Delete all pending invitations for this household
+        db.query(HouseholdInvitation).filter(
+            HouseholdInvitation.household_id == household_id
+        ).delete()
+
+        # Delete all user associations (remove all members)
+        db.execute(
+            user_households.delete().where(
+                user_households.c.household_id == household_id
+            )
+        )
+
+        # Delete the household
+        db.query(Household).filter(Household.id == household_id).delete()
+
+        db.commit()
+
+        if is_admin:
+            return {
+                "message": "Successfully left household. Household was deleted as you were the admin."
+            }
+        else:
+            return {
+                "message": "Successfully left household. Household was deleted as you were the last member."
+            }
+
+    # Regular member leaving - just remove them
     stmt = user_households.delete().where(
         user_households.c.user_id == current_user.id,
         user_households.c.household_id == household_id,
     )
     db.execute(stmt)
     db.commit()
-
     return {"message": "Successfully left household"}
 
 

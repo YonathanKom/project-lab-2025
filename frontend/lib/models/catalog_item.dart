@@ -59,22 +59,7 @@ class CatalogItem {
   }
 
   String get displayName {
-    final parts = <String>[];
-    parts.add(name);
-
-    if (manufacturerName != null && manufacturerName!.isNotEmpty) {
-      parts.add('($manufacturerName)');
-    }
-
-    if (unitOfMeasure != null && unitOfMeasure!.isNotEmpty) {
-      if (quantity != null) {
-        parts.add('- $quantity$unitOfMeasure');
-      } else {
-        parts.add('- $unitOfMeasure');
-      }
-    }
-
-    return parts.join(' ');
+    return name;
   }
 
   String get priceInfo {

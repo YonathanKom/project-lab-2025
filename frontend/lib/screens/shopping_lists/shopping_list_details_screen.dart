@@ -196,6 +196,11 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
         title: Text(_shoppingList.name),
         actions: [
           IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loadShoppingList,
+          ),
+          IconButton(
             icon: const Icon(Icons.compare_arrows),
             tooltip: 'Compare Prices',
             onPressed: _navigateToPriceComparison,

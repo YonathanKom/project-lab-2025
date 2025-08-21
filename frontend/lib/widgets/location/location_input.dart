@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:io' show Platform;
+import 'dart:async';
 
 class LocationInput extends StatefulWidget {
   final Function(double lat, double lon, double radius)? onLocationSet;
@@ -21,6 +23,7 @@ class _LocationInputState extends State<LocationInput> {
   double? _userLon;
   bool _isGettingLocation = false;
   String? _locationError;
+  Timer? _debounceTimer;
 
   @override
   Widget build(BuildContext context) {
@@ -93,18 +96,25 @@ class _LocationInputState extends State<LocationInput> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Location: ${_userLat!.toStringAsFixed(4)}, ${_userLon!.toStringAsFixed(4)}',
-                        style: Theme.of(context).textTheme.bodySmall,
+                        'Location enabled for nearby stores',
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
-                    TextButton(
-                      onPressed: _getCurrentLocation,
-                      child: const Text('Update'),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _userLat = null;
+                          _userLon = null;
+                        });
+                        widget.onLocationCleared?.call();
+                      },
+                      icon: const Icon(Icons.clear, size: 16),
+                      label: const Text('Clear'),
                     ),
                   ],
                 ),
               )
-            else
+            else ...[
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -121,7 +131,8 @@ class _LocationInputState extends State<LocationInput> {
                       : 'Get Current Location'),
                 ),
               ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
             Row(
               children: [
                 Text(
@@ -147,7 +158,7 @@ class _LocationInputState extends State<LocationInput> {
                 setState(() {
                   _radiusKm = value;
                 });
-                _notifyLocationChange();
+                _debouncedLocationChange(); // Instead of _notifyLocationChange()
               },
             ),
             if (_userLat == null || _userLon == null)
@@ -173,6 +184,20 @@ class _LocationInputState extends State<LocationInput> {
     });
 
     try {
+      if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
+        // Mock location for unsupported platforms
+        await Future.delayed(const Duration(seconds: 1)); // simulate delay
+        setState(() {
+          _userLat = 31.878347;
+          _userLon = 35.006626;
+          _isGettingLocation = false;
+        });
+        _notifyLocationChange();
+        return;
+      }
+
+      // ---------------- Real Geolocator code for Android/iOS ----------------
+
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -216,6 +241,19 @@ class _LocationInputState extends State<LocationInput> {
         _locationError = e.toString().replaceFirst('Exception: ', '');
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _debouncedLocationChange() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _notifyLocationChange();
+    });
   }
 
   void _notifyLocationChange() {

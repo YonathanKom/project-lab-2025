@@ -265,8 +265,15 @@ class PriceService:
             return True
 
     def search_items(self, params: ItemSearchParams) -> List[ItemWithPrice]:
-        """Search items with current prices."""
-        query = self.db.query(Item)
+        """Search items with current prices, sorted by number of price entries (per item_code)."""
+
+        # Build query: join Item and ItemPrice so we can count price entries
+        query = (
+            self.db.query(Item, func.count(ItemPrice.id).label("price_count"))
+            .join(ItemPrice, Item.item_code == ItemPrice.item_code)
+            .filter(ItemPrice.item_status == 1)  # only active prices
+            .group_by(Item.id)
+        )
 
         # Apply filters
         if params.query:
@@ -278,16 +285,29 @@ class PriceService:
                     Item.manufacturer_name.ilike(search_term),
                 )
             )
+        if params.chain_id:
+            query = query.filter(ItemPrice.chain_id == params.chain_id)
+        if params.store_id:
+            query = query.filter(ItemPrice.store_id == params.store_id)
+        if params.min_price is not None:
+            query = query.filter(ItemPrice.price >= params.min_price)
+        if params.max_price is not None:
+            query = query.filter(ItemPrice.price <= params.max_price)
 
-        # Get items with latest prices
-        items = query.offset(params.offset).limit(params.limit).all()
+        # Sort by number of price entries (highest first)
+        query = query.order_by(func.count(ItemPrice.id).desc())
+
+        # Pagination
+        results = query.offset(params.offset).limit(params.limit).all()
 
         result = []
-        for item in items:
-            # Get latest price
+        for item, _ in results:
+            # Get latest price for each item
             latest_price = (
                 self.db.query(ItemPrice)
-                .filter(ItemPrice.item_code == item.item_code)
+                .filter(
+                    ItemPrice.item_code == item.item_code, ItemPrice.item_status == 1
+                )
                 .order_by(desc(ItemPrice.price_update_date))
                 .first()
             )
@@ -358,6 +378,9 @@ class PriceService:
         # Base query for stores with their chains
         stores_query = self.db.query(Store).join(Chain)
 
+        # Dictionary to store calculated distances
+        store_distances = {}
+
         # Apply location filtering if coordinates provided
         if user_lat is not None and user_lon is not None and radius_km is not None:
             # Haversine formula in SQL to calculate distance in kilometers
@@ -369,17 +392,29 @@ class PriceService:
                 * func.cos(func.radians(Store.longitude) - func.radians(user_lon))
             )
 
-            # Filter stores within radius and with valid coordinates
-            stores_query = stores_query.filter(
-                Store.latitude.isnot(None),
-                Store.longitude.isnot(None),
-                distance_formula <= radius_km,
-            ).order_by(distance_formula)  # Sort by distance (closest first)
+            # Add distance as a column in the query
+            stores_query = (
+                stores_query.add_columns(distance_formula.label("distance"))
+                .filter(
+                    Store.latitude.isnot(None),
+                    Store.longitude.isnot(None),
+                    distance_formula <= radius_km,
+                )
+                .order_by(distance_formula)
+            )  # Sort by distance (closest first)
 
-        # Get filtered stores
-        stores = stores_query.all()
+            # Execute query and extract stores with distances
+            stores_with_distance = stores_query.all()
+            stores = [store for store, distance in stores_with_distance]
 
-        # Limit to top stores by item availability (existing logic)
+            # Store distances for later use
+            for store, distance in stores_with_distance:
+                store_distances[store.id] = round(distance, 2)
+        else:
+            # No location filtering - get stores normally
+            stores = stores_query.all()
+
+        # Filter stores that have any price data
         stores_with_prices = []
         for store in stores:
             price_count = (
@@ -388,15 +423,11 @@ class PriceService:
                 .count()
             )
             if price_count > 0:
-                stores_with_prices.append((store, price_count))
-
-        # Sort by item availability and take top 5
-        stores_with_prices.sort(key=lambda x: x[1], reverse=True)
-        top_stores = [store for store, _ in stores_with_prices[:5]]
+                stores_with_prices.append(store)
 
         store_comparisons = []
 
-        for store in top_stores:
+        for store in stores_with_prices:
             total_price = 0.0
             available_items = 0
             missing_items = []
@@ -475,6 +506,9 @@ class PriceService:
                             )
                         )
 
+            # Get distance for this store (if available)
+            distance_km = store_distances.get(store.id)
+
             store_comparisons.append(
                 StoreComparison(
                     store_id=store.id,
@@ -485,11 +519,27 @@ class PriceService:
                     available_items=available_items,
                     missing_items=missing_items,
                     items_breakdown=items_breakdown,
+                    distance_km=distance_km,  # Add distance to response
                 )
             )
 
-        # Sort by total price (cheapest first)
-        store_comparisons.sort(key=lambda x: x.total_price)
+        # Multi-criteria sorting:
+        # 1. Most available items (descending)
+        # 2. Lowest total price (ascending)
+        # 3. Closest distance (ascending, None values last)
+        def sort_key(store_comparison):
+            return (
+                -store_comparison.available_items,  # Negative for descending (most items first)
+                store_comparison.total_price,  # Ascending (lowest price first)
+                store_comparison.distance_km
+                if store_comparison.distance_km is not None
+                else float("inf"),  # Ascending distance, None last
+            )
+
+        store_comparisons.sort(key=sort_key)
+
+        # Limit to top 5 stores after sorting
+        store_comparisons = store_comparisons[:5]
 
         return ShoppingListPriceComparison(
             shopping_list_id=shopping_list.id,

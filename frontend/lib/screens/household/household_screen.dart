@@ -78,11 +78,43 @@ class _HouseholdScreenState extends State<HouseholdScreen>
     final result = await _householdService.getUserHouseholds(token);
     if (result['success']) {
       final householdList = result['data'] as List;
+      final newHouseholds =
+          householdList.map((h) => Household.fromJson(h)).toList();
+
       setState(() {
-        _households = householdList.map((h) => Household.fromJson(h)).toList();
+        _households = newHouseholds;
+
+        // Check if currently selected household still exists
+        if (_selectedHouseholdId != null) {
+          final stillExists =
+              _households.any((h) => h.id == _selectedHouseholdId);
+          if (!stillExists) {
+            // Reset selection if current household no longer exists
+            _selectedHouseholdId = null;
+            _selectedHousehold = null;
+          }
+        }
+
+        // Set default selection if none selected and households exist
         if (_households.isNotEmpty && _selectedHouseholdId == null) {
           _selectedHouseholdId = _households.first.id;
           _selectedHousehold = _households.first;
+        }
+
+        // Update selected household object if ID is valid
+        if (_selectedHouseholdId != null) {
+          try {
+            _selectedHousehold =
+                _households.firstWhere((h) => h.id == _selectedHouseholdId);
+          } catch (e) {
+            // If household not found, reset selection
+            _selectedHouseholdId = null;
+            _selectedHousehold = null;
+            if (_households.isNotEmpty) {
+              _selectedHouseholdId = _households.first.id;
+              _selectedHousehold = _households.first;
+            }
+          }
         }
       });
     } else {
@@ -527,6 +559,29 @@ class _HouseholdScreenState extends State<HouseholdScreen>
                           icon: const Icon(Icons.person_add),
                           tooltip: 'Invite Member',
                         ),
+                      PopupMenuButton(
+                        icon: const Icon(Icons.more_vert),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'leave',
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.exit_to_app,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text('Leave Household'),
+                              ],
+                            ),
+                          ),
+                        ],
+                        onSelected: (value) {
+                          if (value == 'leave') {
+                            _leaveHousehold(household);
+                          }
+                        },
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -647,32 +702,65 @@ class _HouseholdScreenState extends State<HouseholdScreen>
         final invitation = _receivedInvitations[index];
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: const CircleAvatar(
-              child: Icon(Icons.home),
-            ),
-            title: Text(invitation.household?.name ?? 'Unknown Household'),
-            subtitle: Column(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                    'Invited by ${invitation.invitedBy?.username ?? 'Unknown'}'),
-                Text(
-                  'Received ${_formatDate(invitation.createdAt)}',
-                  style: Theme.of(context).textTheme.bodySmall,
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      child: Icon(Icons.home),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            invitation.household?.name ?? 'Unknown Household',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Invited by ${invitation.invitedBy?.username ?? 'Unknown'}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Received ${_formatDate(invitation.createdAt)}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: () => _respondToInvitation(invitation, false),
-                  child: const Text('Decline'),
-                ),
-                ElevatedButton(
-                  onPressed: () => _respondToInvitation(invitation, true),
-                  child: const Text('Accept'),
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => _respondToInvitation(invitation, false),
+                      child: const Text('Decline'),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      onPressed: () => _respondToInvitation(invitation, true),
+                      child: const Text('Accept'),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -739,6 +827,108 @@ class _HouseholdScreenState extends State<HouseholdScreen>
         );
       },
     );
+  }
+
+  Future<void> _leaveHousehold(Household household) async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final currentUserId = authProvider.user?.id;
+    final isLastMember = household.members.length == 1;
+    final isAdmin = household.members
+        .where((m) => m.id == currentUserId)
+        .any((m) => m.isAdmin);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: const Text('Leave Household'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to leave "${household.name}"?'),
+            const SizedBox(height: 16),
+            if (isAdmin || isLastMember)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(dialogContext).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.warning,
+                      color: Theme.of(dialogContext).colorScheme.error,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        isAdmin
+                            ? 'Since you are the admin, this household and all its shopping lists will be permanently deleted for all members.'
+                            : 'Since you are the last member, this household and all its shopping lists will be permanently deleted.',
+                        style: TextStyle(
+                          color: Theme.of(dialogContext)
+                              .colorScheme
+                              .onErrorContainer,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+            ),
+            child:
+                Text((isAdmin || isLastMember) ? 'Delete Household' : 'Leave'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      if (!mounted) return;
+
+      final token = authProvider.token;
+      if (token == null) return;
+
+      try {
+        final result = await _householdService.leaveHousehold(
+          household.id,
+          token,
+        );
+
+        if (result['success']) {
+          await _loadData();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content:
+                      Text(result['message'] ?? 'Left household successfully')),
+            );
+          }
+        } else {
+          throw Exception(result['error'] ?? 'Unknown error');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to leave household: $e')),
+          );
+        }
+      }
+    }
   }
 
   Future<void> _removeMember(HouseholdMember member) async {

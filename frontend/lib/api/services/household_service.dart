@@ -102,19 +102,36 @@ class HouseholdService {
 
   // Leave household
   Future<Map<String, dynamic>> leaveHousehold(
-      int householdId, String token) async {
+    int householdId,
+    String token,
+  ) async {
     try {
-      final response = await http.post(
+      final response = await http.delete(
         Uri.parse('$baseUrl/households/$householdId/leave'),
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
         },
       );
 
-      return _handleResponse(response);
+      final data = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'message': data['message'],
+        };
+      } else {
+        return {
+          'success': false,
+          'error': data['detail'] ?? 'Failed to leave household',
+        };
+      }
     } catch (e) {
-      throw Exception('Failed to leave household: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
     }
   }
 

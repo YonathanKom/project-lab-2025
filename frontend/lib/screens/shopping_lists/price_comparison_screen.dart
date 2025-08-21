@@ -5,7 +5,6 @@ import '../../models/shopping_list.dart';
 import '../../models/price_comparison.dart';
 import '../../api/services/price_service.dart';
 import '../../providers/auth_provider.dart';
-import '../../widgets/common/app_drawer.dart';
 import '../../widgets/location/location_input.dart';
 import '../../widgets/theme_toggle.dart';
 
@@ -79,7 +78,6 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
         title: const Text('Price Comparison'),
         actions: const [ThemeToggle()],
       ),
-      drawer: const AppDrawer(),
       body: Column(
         children: [
           LocationInput(
@@ -151,95 +149,108 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
           ..._comparison!.storeComparisons.asMap().entries.map((entry) {
             final index = entry.key;
             final store = entry.value;
-            final isExpanded = _expandedStoreIndex == index;
-            final isCheapest = index == 0;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              elevation: isCheapest ? 4 : 1,
-              color: isCheapest
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : null,
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: isCheapest
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.secondary,
-                      child: Text(
-                        '${index + 1}',
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    title: Text(
-                      store.chainName,
-                      style: TextStyle(
-                        fontWeight: isCheapest ? FontWeight.bold : null,
-                      ),
-                      overflow: TextOverflow.ellipsis, // keeps it on one line
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${store.storeName}${store.city != null ? ' - ${store.city}' : ''}',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        _buildAvailabilityIndicator(store),
-                      ],
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            '₪${store.totalPrice.toStringAsFixed(2)}',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: isCheapest
-                                      ? Theme.of(context).colorScheme.primary
-                                      : null,
-                                ),
-                          ),
-                        ),
-                        if (isCheapest)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'BEST PRICE',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    onTap: () {
-                      setState(() {
-                        _expandedStoreIndex = isExpanded ? null : index;
-                      });
-                    },
-                  ),
-                  if (isExpanded) _buildItemsBreakdown(store),
-                ],
-              ),
-            );
+            return _buildStoreComparisonTile(index, store);
           }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStoreComparisonTile(int index, StoreComparison store) {
+    final isExpanded = _expandedStoreIndex == index;
+    final isCheapest = index == 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: isCheapest ? 4 : 1,
+      color: isCheapest ? Theme.of(context).colorScheme.primaryContainer : null,
+      child: Column(
+        children: [
+          ListTile(
+            leading: CircleAvatar(
+              backgroundColor: isCheapest
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.secondary,
+              child: Text(
+                '${index + 1}',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            title: Text(
+              store.chainName,
+              style: TextStyle(
+                fontWeight: isCheapest ? FontWeight.bold : null,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                    '${store.storeName}${store.city != null ? ' - ${store.city}' : ''}'),
+                // Add distance display
+                if (store.distanceKm != null) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on,
+                        size: 12,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        store.distanceDisplay,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+                const SizedBox(height: 4),
+                _buildAvailabilityIndicator(store),
+              ],
+            ),
+            trailing: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '₪${store.totalPrice.toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isCheapest
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
+                      ),
+                ),
+                if (isCheapest)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'BEST PRICE',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            onTap: () {
+              setState(() {
+                _expandedStoreIndex = isExpanded ? null : index;
+              });
+            },
+          ),
+          if (isExpanded) _buildItemsBreakdown(store),
         ],
       ),
     );

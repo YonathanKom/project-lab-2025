@@ -141,6 +141,7 @@ class StoreComparison(BaseModel):
     available_items: int
     missing_items: List[str]
     items_breakdown: List["ItemPriceBreakdown"]
+    distance_km: Optional[float] = None
 
 
 class ItemPriceBreakdown(BaseModel):

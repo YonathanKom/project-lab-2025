@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:auto_size_text/auto_size_text.dart';
 import '../../api/services/item_service.dart';
 import '../../models/catalog_item.dart';
 import '../../providers/auth_provider.dart';
@@ -19,8 +20,6 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
   final ItemService _itemService = ItemService(baseUrl);
 
   List<CatalogItem> _items = [];
-  List<Chain> _chains = [];
-  Chain? _selectedChain;
   bool _isLoading = false;
   bool _hasMore = true;
   String? _errorMessage;
@@ -31,7 +30,7 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
   @override
   void initState() {
     super.initState();
-    _loadChains();
+    _searchItems();
     _scrollController.addListener(_onScroll);
   }
 
@@ -52,20 +51,6 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
     }
   }
 
-  Future<void> _loadChains() async {
-    try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      final chains = await _itemService.getChains(
-        token: authProvider.token!,
-      );
-      setState(() {
-        _chains = chains;
-      });
-    } catch (e) {
-      // Chains are optional, don't show error
-    }
-  }
-
   Future<void> _searchItems() async {
     if (_isLoading) return;
 
@@ -81,7 +66,6 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
       final items = await _itemService.searchItems(
         token: authProvider.token!,
         query: _searchController.text.trim(),
-        chainId: _selectedChain?.chainId,
         skip: 0,
         limit: _itemsPerPage,
       );
@@ -114,7 +98,6 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
       final items = await _itemService.searchItems(
         token: authProvider.token!,
         query: _searchController.text.trim(),
-        chainId: _selectedChain?.chainId,
         skip: _currentSkip,
         limit: _itemsPerPage,
       );
@@ -141,65 +124,29 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
   }
 
   Widget _buildSearchBar() {
-    return Column(
-      children: [
-        TextField(
-          controller: _searchController,
-          onChanged: _onSearchChanged,
-          decoration: InputDecoration(
-            hintText: 'Search items by name...',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _searchController.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      _searchItems();
-                    },
-                  )
-                : null,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-          ),
+    return TextField(
+      controller: _searchController,
+      onChanged: _onSearchChanged,
+      decoration: InputDecoration(
+        hintText: 'Search items by name...',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                  _searchItems();
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
         ),
-        if (_chains.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          DropdownButtonFormField<Chain>(
-            value: _selectedChain,
-            decoration: InputDecoration(
-              labelText: 'Filter by chain',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
-            items: [
-              const DropdownMenuItem<Chain>(
-                value: null,
-                child: Text('All chains'),
-              ),
-              ..._chains.map((chain) => DropdownMenuItem<Chain>(
-                    value: chain,
-                    child: Text(chain.name),
-                  )),
-            ],
-            onChanged: (chain) {
-              setState(() {
-                _selectedChain = chain;
-              });
-              _searchItems();
-            },
-          ),
-        ],
-      ],
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
+      ),
     );
   }
 
@@ -207,27 +154,35 @@ class _ItemSearchDialogState extends State<ItemSearchDialog> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
-        title: Text(
+        title: AutoSizeText(
           item.displayName,
           style: const TextStyle(fontWeight: FontWeight.w500),
+          maxLines: 2,
+          minFontSize: 10,
+          overflow: TextOverflow.ellipsis,
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (item.manufacturerDescription != null)
-              Text(
-                item.manufacturerDescription!,
+            if (item.manufacturerName != null &&
+                item.manufacturerName != '×œ× ×™×"×•×¢')
+              AutoSizeText(
+                item.manufacturerName!,
                 style: Theme.of(context).textTheme.bodySmall,
                 maxLines: 1,
+                minFontSize: 8,
                 overflow: TextOverflow.ellipsis,
               ),
             const SizedBox(height: 4),
-            Text(
+            AutoSizeText(
               item.priceInfo,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.primary,
                 fontWeight: FontWeight.w500,
               ),
+              maxLines: 1,
+              minFontSize: 10,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

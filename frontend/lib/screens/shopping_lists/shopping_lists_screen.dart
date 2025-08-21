@@ -1,6 +1,7 @@
 import 'package:fastflutter/utils/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/household.dart';
 import '../../providers/auth_provider.dart';
 import '../../api/services/shopping_list_service.dart';
 import '../../models/shopping_list.dart';
@@ -23,7 +24,7 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
   bool _isLoading = true;
   String _errorMessage = '';
   int? _selectedHouseholdId;
-  List<int> _availableHouseholds = [];
+  List<Household> _availableHouseholds = [];
 
   @override
   void initState() {
@@ -36,13 +37,48 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh households every time we enter this screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshHouseholds();
+    });
+  }
+
   void _initializeHouseholds() {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     final user = authProvider.user;
 
     if (user != null && user.householdIds.isNotEmpty) {
-      _availableHouseholds = user.householdIds;
-      _selectedHouseholdId = user.householdIds.first;
+      _availableHouseholds = user.households;
+      _selectedHouseholdId = user.households.first.id;
+      _loadShoppingLists();
+    }
+  }
+
+  Future<void> _refreshHouseholds() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Refresh user data from server to get latest households
+    await authProvider.refreshUserData();
+
+    if (!mounted) return;
+
+    final user = authProvider.user;
+    if (user != null && user.households.isNotEmpty) {
+      final oldSelectedId = _selectedHouseholdId;
+      _availableHouseholds = user.households;
+
+      // Keep the same household selected if it still exists, otherwise select first
+      if (oldSelectedId != null &&
+          user.households.any((h) => h.id == oldSelectedId)) {
+        _selectedHouseholdId = oldSelectedId;
+      } else {
+        _selectedHouseholdId = user.households.first.id;
+      }
+
+      // Reload shopping lists with updated household data
       _loadShoppingLists();
     }
   }
@@ -192,18 +228,24 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
               },
               itemBuilder: (context) => _availableHouseholds
                   .map(
-                    (id) => PopupMenuItem(
-                      value: id,
+                    (household) => PopupMenuItem(
+                      value: household.id, // Changed from id to household.id
                       child: Row(
                         children: [
                           Icon(
-                            _selectedHouseholdId == id
+                            _selectedHouseholdId == household.id
                                 ? Icons.check
                                 : Icons.home_outlined,
                             size: 20,
+                            color: _selectedHouseholdId == household.id
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
                           ),
                           const SizedBox(width: 8),
-                          Text('Household $id'),
+                          Text(household
+                              .name), // Changed from 'Household $id' to household.name
                         ],
                       ),
                     ),
