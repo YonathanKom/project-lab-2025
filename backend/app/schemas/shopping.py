@@ -108,3 +108,44 @@ class ShoppingListInDBBase(ShoppingListBase):
 
 class ShoppingList(ShoppingListInDBBase):
     items: List[ShoppingItem] = []
+
+
+class ShoppingListComplete(BaseModel):
+    """Schema for completing a shopping list"""
+
+    pass
+
+
+class ShoppingListHistoryBase(BaseModel):
+    shopping_list_name: str
+    household_id: int
+    completed_at: datetime
+    completed_by_id: int
+
+
+class ShoppingListHistoryItem(BaseModel):
+    name: str
+    description: Optional[str] = None
+    quantity: float
+    item_code: Optional[str] = None
+    price: Optional[float] = None
+    is_purchased: bool
+
+    class Config:
+        from_attributes = True
+
+
+class ShoppingListHistory(ShoppingListHistoryBase):
+    id: int
+    items: List[ShoppingListHistoryItem] = []
+    completed_by_username: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ShoppingListRestore(BaseModel):
+    target_list_id: Optional[int] = None  # If None, creates new list
+    target_list_name: Optional[str] = (
+        None  # Name for new list if target_list_id is None
+    )

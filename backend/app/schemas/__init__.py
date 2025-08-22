@@ -41,6 +41,8 @@ from .shopping import (
     ShoppingListUpdate,
     ShoppingListInDBBase,
     ShoppingList,
+    ShoppingListHistory,
+    ShoppingListRestore,
 )
 
 # Catalog schemas
@@ -128,6 +130,8 @@ __all__ = [
     "ShoppingListUpdate",
     "ShoppingListInDBBase",
     "ShoppingList",
+    "ShoppingListHistory",
+    "ShoppingListRestore",
     # Catalog
     "ChainBase",
     "ChainCreate",

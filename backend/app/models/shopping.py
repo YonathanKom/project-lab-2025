@@ -70,9 +70,13 @@ class ShoppingListHistory(Base):
     __tablename__ = "shopping_list_history"
     id = Column(Integer, primary_key=True, index=True)
     shopping_list_id = Column(Integer, ForeignKey("shopping_lists.id"))
-    action = Column(String)  # "add", "update", "delete"
-    item_data = Column(String)  # JSON string of item data
-    user_id = Column(Integer, ForeignKey("users.id"))
-    timestamp = Column(DateTime, default=datetime.utcnow)
+    shopping_list_name = Column(String, nullable=False)  # Store name at completion time
+    household_id = Column(Integer, ForeignKey("households.id"))
+    items_data = Column(Text, nullable=False)  # JSON string of all items at completion
+    completed_by_id = Column(Integer, ForeignKey("users.id"))
+    completed_at = Column(DateTime, default=datetime.utcnow)
 
+    # Relationships
     shopping_list = relationship("ShoppingList", back_populates="history")
+    completed_by = relationship("User")
+    household = relationship("Household")

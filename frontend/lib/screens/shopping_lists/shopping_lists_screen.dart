@@ -370,7 +370,7 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.only(top: 8.0, bottom: 80.0),
       itemCount: _shoppingLists.length,
       itemBuilder: (context, index) {
         final list = _shoppingLists[index];

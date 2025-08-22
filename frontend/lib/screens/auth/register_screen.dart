@@ -21,6 +21,7 @@ class RegisterScreenState extends State<RegisterScreen> {
   bool _isFormValid = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _hasAttemptedSubmit = false;
 
   @override
   void initState() {
@@ -53,14 +54,24 @@ class RegisterScreenState extends State<RegisterScreen> {
   // Validate form and update state
   void _validateForm() {
     if (_formKey.currentState != null) {
+      // Check if all required fields have content for button enablement
+      final hasContent = _usernameController.text.trim().isNotEmpty &&
+          _emailController.text.trim().isNotEmpty &&
+          _passwordController.text.isNotEmpty &&
+          _confirmPasswordController.text.isNotEmpty;
+
       setState(() {
-        _isFormValid = _formKey.currentState!.validate();
+        _isFormValid = hasContent;
       });
     }
   }
 
   // Handle registration
   Future<void> _register() async {
+    setState(() {
+      _hasAttemptedSubmit = true;
+    });
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -101,6 +112,7 @@ class RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Register'),
+        automaticallyImplyLeading: false,
         actions: [
           ThemeToggle(),
         ],
@@ -123,6 +135,7 @@ class RegisterScreenState extends State<RegisterScreen> {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) {
+                  if (!_hasAttemptedSubmit) return null;
                   if (value == null || value.isEmpty) {
                     return 'Please enter a username';
                   }
@@ -140,7 +153,10 @@ class RegisterScreenState extends State<RegisterScreen> {
                   prefixIcon: Icon(Icons.email),
                   border: OutlineInputBorder(),
                 ),
-                validator: Validators.validateEmail,
+                validator: (value) {
+                  if (!_hasAttemptedSubmit) return null;
+                  return Validators.validateEmail(value);
+                },
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
               ),
@@ -167,7 +183,10 @@ class RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 obscureText: _obscurePassword,
-                validator: Validators.validatePassword,
+                validator: (value) {
+                  if (!_hasAttemptedSubmit) return null;
+                  return Validators.validatePassword(value);
+                },
                 textInputAction: TextInputAction.next,
               ),
               const SizedBox(height: 16),
@@ -193,8 +212,11 @@ class RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
                 obscureText: _obscureConfirmPassword,
-                validator: (value) => Validators.validateConfirmPassword(
-                    value, _passwordController.text),
+                validator: (value) {
+                  if (!_hasAttemptedSubmit) return null;
+                  return Validators.validateConfirmPassword(
+                      value, _passwordController.text);
+                },
                 textInputAction: TextInputAction.done,
                 onFieldSubmitted: (_) => _register(),
               ),

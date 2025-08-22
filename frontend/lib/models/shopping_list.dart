@@ -5,7 +5,6 @@ class ShoppingList {
   final int ownerId;
   final DateTime createdAt;
   final DateTime? updatedAt;
-  final DateTime? completedAt;
   final List<ShoppingItem> items;
 
   ShoppingList({
@@ -15,7 +14,6 @@ class ShoppingList {
     required this.ownerId,
     required this.createdAt,
     this.updatedAt,
-    this.completedAt,
     this.items = const [],
   });
 

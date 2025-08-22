@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../models/shopping_list.dart';
+import '../../models/history_item.dart';
 
 class ShoppingListService {
   final String baseUrl;
@@ -226,6 +227,81 @@ class ShoppingListService {
       }
     } catch (e) {
       throw Exception('Failed to toggle item: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> completeShoppingList({
+    required int listId,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/shopping-lists/$listId/complete'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to complete shopping list: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to complete shopping list: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> restoreFromHistory({
+    required int historyId,
+    required RestoreToList restoreData,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/history/$historyId/restore'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(restoreData.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Failed to restore from history: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to restore from history: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> restoreItemFromHistory({
+    required int historyId,
+    required String itemName,
+    required int targetListId,
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse(
+            '$baseUrl/history/$historyId/restore-item?item_name=${Uri.encodeComponent(itemName)}&target_list_id=$targetListId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception(
+            'Failed to restore item from history: ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to restore item from history: $e');
     }
   }
 }

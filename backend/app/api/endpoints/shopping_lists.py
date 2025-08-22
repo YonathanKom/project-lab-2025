@@ -11,6 +11,9 @@ from app.schemas import (
     ShoppingListCreate,
     ShoppingListUpdate,
 )
+from app.models import ShoppingListHistory
+from datetime import datetime
+import json
 
 router = APIRouter()
 
@@ -203,3 +206,72 @@ def delete_shopping_list(
 
     db.delete(db_shopping_list)
     db.commit()
+
+
+@router.post("/{list_id}/complete")
+def complete_shopping_list(
+    list_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Complete shopping list and move to history
+    """
+    # Get the shopping list
+    shopping_list = db.query(ShoppingList).filter(ShoppingList.id == list_id).first()
+
+    if not shopping_list:
+        raise HTTPException(status_code=404, detail="Shopping list not found")
+
+    # Check if user is member of the household
+    if not any(h.id == shopping_list.household_id for h in current_user.households):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to complete this list"
+        )
+
+    # Get all items
+    items = (
+        db.query(ShoppingItem).filter(ShoppingItem.shopping_list_id == list_id).all()
+    )
+
+    if not items:
+        raise HTTPException(
+            status_code=400, detail="Cannot complete empty shopping list"
+        )
+
+    # Create items data for history
+    items_data = []
+    for item in items:
+        items_data.append(
+            {
+                "name": item.name,
+                "description": item.description,
+                "quantity": item.quantity,
+                "item_code": item.item_code,
+                "price": item.price,
+                "is_purchased": item.is_purchased,
+            }
+        )
+
+    # Create history record
+    history_record = ShoppingListHistory(
+        shopping_list_id=shopping_list.id,
+        shopping_list_name=shopping_list.name,
+        household_id=shopping_list.household_id,
+        items_data=json.dumps(items_data),
+        completed_by_id=current_user.id,
+        completed_at=datetime.utcnow(),
+    )
+
+    # Remove all items from the shopping list (keep the list itself)
+    for item in items:
+        db.delete(item)
+
+    # Save changes
+    db.add(history_record)
+    db.commit()
+
+    return {
+        "message": "Shopping list completed successfully",
+        "items_moved_to_history": len(items),
+    }

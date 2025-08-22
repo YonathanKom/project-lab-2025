@@ -249,7 +249,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final totalLists = _shoppingLists.length;
     final totalItems = _shoppingLists.fold<int>(
       0,
-      (sum, list) => sum + (list.items.length),
+      (sum, list) =>
+          sum + (list.items.where((item) => !item.isPurchased).length),
     );
     final completedItems = _shoppingLists.fold<int>(
       0,
@@ -263,23 +264,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: _buildStatCard(
             'Lists',
             totalLists.toString(),
-            Icons.list_alt,
+            Icons.shopping_cart,
             Colors.blue,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Items',
+            'Unbought',
             totalItems.toString(),
-            Icons.shopping_cart,
+            Icons.pending,
             Colors.green,
           ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: _buildStatCard(
-            'Completed',
+            'Bought',
             completedItems.toString(),
             Icons.check_circle,
             Colors.orange,

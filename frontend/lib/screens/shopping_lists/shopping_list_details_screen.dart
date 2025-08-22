@@ -109,6 +109,47 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
     }
   }
 
+  Future<void> _completeShoppingList() async {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Complete Shopping List'),
+        content: const Text(
+            'This will mark the shopping list as complete and move all items to history. '
+            'The list will be emptied but kept for future use. Continue?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Complete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        final result = await _shoppingListService.completeShoppingList(
+          listId: _shoppingList.id,
+          token: authProvider.token!,
+        );
+
+        if (!mounted) return;
+        _showSnackBar(
+            result['message'] ?? 'Shopping list completed successfully');
+        _loadShoppingList(); // Refresh to show empty list
+      } catch (e) {
+        if (!mounted) return;
+        _showSnackBar('Failed to complete shopping list: ${e.toString()}');
+      }
+    }
+  }
+
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -224,6 +265,12 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
             tooltip: 'Compare Prices',
             onPressed: _navigateToPriceComparison,
           ),
+          if (_shoppingList.items.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.check_circle_outline),
+              tooltip: 'Mark as Done',
+              onPressed: _completeShoppingList,
+            ),
           const ThemeToggle(),
         ],
       ),

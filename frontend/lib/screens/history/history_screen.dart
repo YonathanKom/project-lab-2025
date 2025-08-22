@@ -8,7 +8,9 @@ import '../../widgets/common/app_drawer.dart';
 import '../../widgets/theme_toggle.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/history_item.dart';
+import '../../models/shopping_list.dart';
 import '../../api/services/history_service.dart';
+import '../../api/services/shopping_list_service.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -19,10 +21,13 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   late HistoryService _historyService;
-  final List<HistoryItem> _historyItems = [];
+  late ShoppingListService _shoppingListService;
+  final List<ShoppingListHistory> _historyItems = [];
+  List<ShoppingList> _availableShoppingLists = [];
   bool _isLoading = false;
   bool _hasMore = true;
   String? _errorMessage;
+  Map<String, dynamic>? _stats;
 
   // Filter controls
   DateTime? _startDate;
@@ -38,8 +43,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _historyService = HistoryService(baseUrl);
+    _shoppingListService = ShoppingListService(baseUrl);
     _loadHistory();
     _loadStats();
+    _loadAvailableShoppingLists();
   }
 
   @override
@@ -103,9 +110,125 @@ class _HistoryScreenState extends State<HistoryScreen> {
       final token = authProvider.token;
 
       if (token == null) return;
+
+      final filter = HistoryFilter(
+        startDate: _startDate,
+        endDate: _endDate,
+        householdId: _selectedHouseholdId,
+        searchQuery: _searchController.text,
+      );
+
+      final stats = await _historyService.getHistoryStats(
+        token: token,
+        filter: filter,
+      );
+
+      setState(() {
+        _stats = stats;
+      });
     } catch (e) {
       // Silently fail for stats
     }
+  }
+
+  Future<void> _loadAvailableShoppingLists() async {
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final token = authProvider.token;
+
+      if (token == null) return;
+
+      final lists = await _shoppingListService.getShoppingLists(token: token);
+      setState(() {
+        _availableShoppingLists = lists;
+      });
+    } catch (e) {
+      // Silently fail
+    }
+  }
+
+  Future<void> _restoreShoppingList(ShoppingListHistory historyItem) async {
+    if (_availableShoppingLists.isEmpty) {
+      _showSnackBar('No shopping lists available. Please create one first.');
+      return;
+    }
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => _RestoreShoppingListDialog(
+        availableShoppingLists: _availableShoppingLists,
+        originalName: historyItem.shoppingListName,
+      ),
+    );
+
+    if (result != null) {
+      try {
+        if (!mounted) return;
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final token = authProvider.token!;
+
+        final restoreData = RestoreToList(
+          targetListId: result['targetListId'],
+          targetListName: result['targetListName'],
+        );
+
+        final response = await _historyService.restoreShoppingList(
+          historyId: historyItem.id,
+          restoreData: restoreData,
+          token: token,
+        );
+
+        if (!mounted) return;
+        _showSnackBar(
+            response['message'] ?? 'Shopping list restored successfully');
+        _loadAvailableShoppingLists(); // Refresh available lists
+      } catch (e) {
+        if (!mounted) return;
+        _showSnackBar('Failed to restore shopping list: ${e.toString()}');
+      }
+    }
+  }
+
+  Future<void> _restoreItem(
+      ShoppingListHistory historyItem, HistoryShoppingItem item) async {
+    if (_availableShoppingLists.isEmpty) {
+      _showSnackBar('No shopping lists available. Please create one first.');
+      return;
+    }
+
+    final selectedList = await showDialog<ShoppingList>(
+      context: context,
+      builder: (context) => _SelectShoppingListDialog(
+        availableShoppingLists: _availableShoppingLists,
+      ),
+    );
+
+    if (selectedList != null) {
+      try {
+        if (!mounted) return;
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final token = authProvider.token!;
+
+        final response = await _historyService.restoreItem(
+          historyId: historyItem.id,
+          itemName: item.name,
+          targetListId: selectedList.id,
+          token: token,
+        );
+
+        if (!mounted) return;
+        _showSnackBar(response['message'] ?? 'Item restored successfully');
+      } catch (e) {
+        if (!mounted) return;
+        _showSnackBar('Failed to restore item: ${e.toString()}');
+      }
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   void _showFilterDialog() {
@@ -144,10 +267,49 @@ class _HistoryScreenState extends State<HistoryScreen> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
+          if (_stats != null) _buildStatsCard(),
           _buildSearchBar(),
           Expanded(child: _buildHistoryList()),
         ],
       ),
+    );
+  }
+
+  Widget _buildStatsCard() {
+    return Card(
+      margin: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildStatItem('Lists', _stats!['total_lists']?.toString() ?? '0'),
+            _buildStatItem('Items', _stats!['total_items']?.toString() ?? '0'),
+            _buildStatItem(
+                'Spent',
+                _stats!['total_spent'] != null
+                    ? '₪${_stats!['total_spent'].toStringAsFixed(2)}'
+                    : '₪0.00'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 
@@ -228,17 +390,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  Widget _buildHistoryTile(HistoryItem item) {
+  Widget _buildHistoryTile(ShoppingListHistory item) {
     final dateFormat = DateFormat('MMM d, y');
     final timeFormat = DateFormat('h:mm a');
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: ListTile(
+      child: ExpansionTile(
         leading: CircleAvatar(
           backgroundColor: Theme.of(context).colorScheme.primaryContainer,
           child: Text(
-            item.quantity.toString(),
+            item.totalItems.toString(),
             style: TextStyle(
               color: Theme.of(context).colorScheme.onPrimaryContainer,
               fontWeight: FontWeight.bold,
@@ -246,39 +408,97 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
         ),
         title: Text(
-          item.itemName,
+          item.shoppingListName,
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-                '${dateFormat.format(item.purchasedAt)} at ${timeFormat.format(item.purchasedAt)}'),
-            Text('From: ${item.shoppingListName}'),
-            if (item.storeName != null || item.chainName != null)
-              Text('Store: ${item.chainName ?? ''} ${item.storeName ?? ''}'
-                  .trim()),
-            Text('By: ${item.purchasedBy}'),
+                '${dateFormat.format(item.completedAt)} at ${timeFormat.format(item.completedAt)}'),
+            Text('${item.totalItems} items completed'),
+            if (item.completedByUsername != null)
+              Text('Completed by: ${item.completedByUsername}'),
           ],
         ),
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              item.totalPrice,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (item.totalPrice != null)
+                  Text(
+                    '₪${item.totalPrice!.toStringAsFixed(2)}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
+                Text(
+                  'Total',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
-            if (item.price != null)
-              Text(
-                '${item.displayPrice} each',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
+            PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              onSelected: (value) {
+                if (value == 'restore') {
+                  _restoreShoppingList(item);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'restore',
+                  child: Row(
+                    children: [
+                      Icon(Icons.restore),
+                      SizedBox(width: 8),
+                      Text('Restore List'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
-        isThreeLine: true,
+        children: [
+          ...item.items.map((historyItem) => ListTile(
+                leading: const Icon(
+                  Icons.check_circle,
+                  color: Colors.green,
+                ),
+                title: Text(historyItem.name),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (historyItem.description != null)
+                      Text(
+                        historyItem.description!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    Text('Qty: ${historyItem.quantity}'),
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (historyItem.price != null)
+                      Text(
+                        historyItem.totalPriceDisplay,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.add_shopping_cart),
+                      onPressed: () => _restoreItem(item, historyItem),
+                      tooltip: 'Add to List',
+                    ),
+                  ],
+                ),
+              )),
+        ],
       ),
     );
   }
@@ -412,6 +632,130 @@ class _FilterDialogState extends State<_FilterDialog> {
             Navigator.of(context).pop();
           },
           child: const Text('Apply'),
+        ),
+      ],
+    );
+  }
+}
+
+class _RestoreShoppingListDialog extends StatefulWidget {
+  final List<ShoppingList> availableShoppingLists;
+  final String originalName;
+
+  const _RestoreShoppingListDialog({
+    required this.availableShoppingLists,
+    required this.originalName,
+  });
+
+  @override
+  State<_RestoreShoppingListDialog> createState() =>
+      _RestoreShoppingListDialogState();
+}
+
+class _RestoreShoppingListDialogState
+    extends State<_RestoreShoppingListDialog> {
+  int? _selectedListId;
+  bool _createNew = false;
+  final TextEditingController _nameController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.text = '${widget.originalName} (Restored)';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Restore Shopping List'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RadioListTile<bool>(
+            title: const Text('Add to existing list'),
+            value: false,
+            groupValue: _createNew,
+            onChanged: (value) => setState(() => _createNew = value!),
+          ),
+          if (!_createNew)
+            DropdownButtonFormField<int>(
+              value: _selectedListId,
+              decoration: const InputDecoration(labelText: 'Select List'),
+              items: widget.availableShoppingLists
+                  .map(
+                    (list) => DropdownMenuItem(
+                      value: list.id,
+                      child: Text(list.name),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _selectedListId = value),
+            ),
+          RadioListTile<bool>(
+            title: const Text('Create new list'),
+            value: true,
+            groupValue: _createNew,
+            onChanged: (value) => setState(() => _createNew = value!),
+          ),
+          if (_createNew)
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'List Name'),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            final result = <String, dynamic>{};
+            if (_createNew) {
+              result['targetListName'] = _nameController.text;
+            } else {
+              result['targetListId'] = _selectedListId;
+            }
+            Navigator.of(context).pop(result);
+          },
+          child: const Text('Restore'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SelectShoppingListDialog extends StatelessWidget {
+  final List<ShoppingList> availableShoppingLists;
+
+  const _SelectShoppingListDialog({
+    required this.availableShoppingLists,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Select Shopping List'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ListView.builder(
+          shrinkWrap: true,
+          itemCount: availableShoppingLists.length,
+          itemBuilder: (context, index) {
+            final list = availableShoppingLists[index];
+            return ListTile(
+              title: Text(list.name),
+              subtitle: Text('${list.items.length} items'),
+              onTap: () => Navigator.of(context).pop(list),
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
         ),
       ],
     );
