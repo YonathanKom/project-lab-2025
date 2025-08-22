@@ -80,7 +80,7 @@ class StoreComparison {
 
 class ItemPriceBreakdown {
   final String itemName;
-  final int quantity;
+  final double quantity;
   final double? unitPrice;
   final double? totalPrice;
   final bool isAvailable;
@@ -96,7 +96,7 @@ class ItemPriceBreakdown {
   factory ItemPriceBreakdown.fromJson(Map<String, dynamic> json) {
     return ItemPriceBreakdown(
       itemName: json['item_name'],
-      quantity: json['quantity'],
+      quantity: (json['quantity'] as num).toDouble(),
       unitPrice: json['unit_price']?.toDouble(),
       totalPrice: json['total_price']?.toDouble(),
       isAvailable: json['is_available'],

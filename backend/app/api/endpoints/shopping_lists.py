@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
-from app.models import User, ShoppingList
+from app.models import User, ShoppingList, ShoppingItem
 from app.schemas import (
     ShoppingList as ShoppingListSchema,
     ShoppingListCreate,
@@ -77,20 +77,81 @@ def get_shopping_list(
     list_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> Any:
-    """
-    Get shopping list by ID
-    """
+):
+    """Get a single shopping list with items."""
+    # Get the shopping list
     shopping_list = db.query(ShoppingList).filter(ShoppingList.id == list_id).first()
+
     if not shopping_list:
-        raise HTTPException(status_code=404, detail="Shopping list not found")
-    if shopping_list.household_id not in [
-        household.id for household in current_user.households
-    ]:
         raise HTTPException(
-            status_code=403, detail="Not authorized to access this shopping list"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Shopping list not found"
         )
-    return shopping_list
+
+    # Check if user is member of the household
+    if not any(h.id == shopping_list.household_id for h in current_user.households):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to view this list",
+        )
+
+    # Get items with username information
+    items = (
+        db.query(ShoppingItem)
+        .filter(ShoppingItem.shopping_list_id == list_id)
+        .order_by(ShoppingItem.is_purchased, ShoppingItem.created_at.desc())
+        .all()
+    )
+
+    # Enhance items with username information
+    enhanced_items = []
+    for item in items:
+        # Get usernames for added_by and purchased_by
+        added_by_username = None
+        purchased_by_username = None
+
+        if item.added_by_id:
+            added_by = db.query(User).filter(User.id == item.added_by_id).first()
+            if added_by:
+                added_by_username = added_by.username
+
+        if item.purchased_by_id:
+            purchased_by = (
+                db.query(User).filter(User.id == item.purchased_by_id).first()
+            )
+            if purchased_by:
+                purchased_by_username = purchased_by.username
+
+        # Create enhanced item dict
+        item_dict = {
+            "id": item.id,
+            "name": item.name,
+            "description": item.description,
+            "quantity": item.quantity,
+            "is_purchased": item.is_purchased,
+            "shopping_list_id": item.shopping_list_id,
+            "added_by_id": item.added_by_id,
+            "purchased_by_id": item.purchased_by_id,
+            "created_at": item.created_at,
+            "updated_at": item.updated_at,
+            "purchased_at": item.purchased_at,
+            "item_code": item.item_code,
+            "price": item.price,
+            "added_by_username": added_by_username,
+            "purchased_by_username": purchased_by_username,
+        }
+        enhanced_items.append(item_dict)
+
+    # Create response dict
+    shopping_list_dict = {
+        "id": shopping_list.id,
+        "name": shopping_list.name,
+        "household_id": shopping_list.household_id,
+        "owner_id": shopping_list.owner_id,
+        "created_at": shopping_list.created_at,
+        "items": enhanced_items,
+    }
+
+    return ShoppingListSchema(**shopping_list_dict)
 
 
 @router.put("/{list_id}", response_model=ShoppingListSchema)

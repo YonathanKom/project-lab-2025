@@ -146,7 +146,7 @@ class StoreComparison(BaseModel):
 
 class ItemPriceBreakdown(BaseModel):
     item_name: str
-    quantity: int
+    quantity: float
     unit_price: Optional[float]
     total_price: Optional[float]
     is_available: bool

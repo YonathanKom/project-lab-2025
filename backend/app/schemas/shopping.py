@@ -6,7 +6,7 @@ from datetime import datetime
 class ShoppingItemBase(BaseModel):
     name: str
     description: Optional[str] = None
-    quantity: int = 1
+    quantity: float = 1
     item_code: Optional[str] = None
     price: Optional[float] = None
 
@@ -18,8 +18,8 @@ class ShoppingItemBase(BaseModel):
 
     @validator("quantity")
     def quantity_positive(cls, v):
-        if v < 1:
-            raise ValueError("Quantity must be at least 1")
+        if v <= 0:
+            raise ValueError("Quantity must be greater than 0")
         return v
 
     @validator("price")
@@ -36,7 +36,7 @@ class ShoppingItemCreate(ShoppingItemBase):
 class ShoppingItemUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
-    quantity: Optional[int] = None
+    quantity: Optional[float] = None
     is_purchased: Optional[bool] = None
     item_code: Optional[str] = None
     price: Optional[float] = None
@@ -49,8 +49,8 @@ class ShoppingItemUpdate(BaseModel):
 
     @validator("quantity")
     def quantity_positive(cls, v):
-        if v is not None and v < 1:
-            raise ValueError("Quantity must be at least 1")
+        if v is not None and v <= 0:
+            raise ValueError("Quantity must be greater than 0")
         return v
 
     @validator("price")
@@ -69,6 +69,8 @@ class ShoppingItemInDBBase(ShoppingItemBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     purchased_at: Optional[datetime] = None
+    added_by_username: Optional[str] = None
+    purchased_by_username: Optional[str] = None
 
     class Config:
         from_attributes = True

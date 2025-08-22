@@ -373,7 +373,14 @@ class _HouseholdScreenState extends State<HouseholdScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Households'),
-        actions: const [ThemeToggle()],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loadData,
+          ),
+          ThemeToggle()
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: [

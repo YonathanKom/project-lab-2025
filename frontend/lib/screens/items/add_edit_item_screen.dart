@@ -35,6 +35,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
   bool _isLoading = false;
   bool _isFormValid = false;
   CatalogItem? _selectedCatalogItem;
+  bool _isFromCatalog = false;
 
   @override
   void initState() {
@@ -49,6 +50,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       _quantityController.text = widget.item!.quantity.toString();
       if (widget.item!.itemCode != null) {
         _itemCodeController.text = widget.item!.itemCode!;
+        _isFromCatalog = true;
       }
       if (widget.item!.price != null) {
         _priceController.text = widget.item!.price!.toStringAsFixed(2);
@@ -95,9 +97,17 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'Please enter a quantity';
     }
-    final quantity = int.tryParse(value);
-    if (quantity == null || quantity < 1) {
-      return 'Please enter a valid quantity';
+
+    if (_selectedCatalogItem?.isWeighted == true) {
+      final quantity = double.tryParse(value);
+      if (quantity == null || quantity <= 0) {
+        return 'Please enter a valid quantity';
+      }
+    } else {
+      final quantity = int.tryParse(value);
+      if (quantity == null || quantity < 1) {
+        return 'Please enter a valid quantity';
+      }
     }
     return null;
   }
@@ -121,6 +131,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     if (result != null) {
       setState(() {
         _selectedCatalogItem = result;
+        _isFromCatalog = true;
         _nameController.text = result.name;
         _itemCodeController.text = result.itemCode;
         if (result.manufacturerDescription != null) {
@@ -153,7 +164,9 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
         'description': _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
-        'quantity': int.parse(_quantityController.text),
+        'quantity': _selectedCatalogItem?.isWeighted == true
+            ? double.parse(_quantityController.text)
+            : int.parse(_quantityController.text),
         'price': _priceController.text.trim().isEmpty
             ? null
             : double.parse(_priceController.text),
@@ -279,13 +292,15 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
             TextFormField(
               controller: _nameController,
               validator: _validateName,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Item Name *',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.shopping_bag),
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.shopping_bag),
+                suffixIcon:
+                    _isFromCatalog ? const Icon(Icons.lock, size: 16) : null,
               ),
               textCapitalization: TextCapitalization.sentences,
-              enabled: !_isLoading,
+              enabled: !_isLoading && !_isFromCatalog,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -306,15 +321,28 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                   child: TextFormField(
                     controller: _quantityController,
                     validator: _validateQuantity,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Quantity *',
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.numbers),
+                      prefixIcon: _selectedCatalogItem?.isWeighted == true &&
+                              _selectedCatalogItem?.unitOfMeasure != null
+                          ? Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Text(
+                                _selectedCatalogItem!.unitOfMeasure!,
+                                style: const TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w500),
+                              ),
+                            )
+                          : const Icon(Icons.numbers),
                     ),
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
+                    inputFormatters: _selectedCatalogItem?.isWeighted == true
+                        ? [
+                            FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d{0,3}'))
+                          ]
+                        : [FilteringTextInputFormatter.digitsOnly],
                     enabled: !_isLoading,
                   ),
                 ),
@@ -323,11 +351,15 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                   child: TextFormField(
                     controller: _priceController,
                     validator: _validatePrice,
-                    decoration: const InputDecoration(
-                      labelText: 'Price (optional)',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Text('₪', style: TextStyle(fontSize: 16)),
-                      prefixIconConstraints: BoxConstraints(minWidth: 48),
+                    decoration: InputDecoration(
+                      labelText: 'Price',
+                      border: const OutlineInputBorder(),
+                      prefixIcon:
+                          const Text('₪', style: TextStyle(fontSize: 16)),
+                      prefixIconConstraints: const BoxConstraints(minWidth: 48),
+                      suffixIcon: _isFromCatalog
+                          ? const Icon(Icons.lock, size: 16)
+                          : null,
                     ),
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
@@ -335,7 +367,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                       FilteringTextInputFormatter.allow(
                           RegExp(r'^\d*\.?\d{0,2}')),
                     ],
-                    enabled: !_isLoading,
+                    enabled: !_isLoading && !_isFromCatalog,
                   ),
                 ),
               ],

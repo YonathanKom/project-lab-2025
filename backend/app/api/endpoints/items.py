@@ -1,12 +1,14 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 from sqlalchemy import func
 
 from app import models
 from app import schemas
 from app.api import deps
 from app.api.deps import get_current_user
+
+from app.models import User, ShoppingItem, ShoppingList
 
 router = APIRouter()
 
@@ -54,38 +56,64 @@ def get_shopping_items(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: User = Depends(deps.get_current_user),
 ):
-    """Get all items in a shopping list."""
-    # Check if user has access to the shopping list
-    shopping_list = (
-        db.query(models.ShoppingList).filter(models.ShoppingList.id == list_id).first()
-    )
-
+    # Verify access to shopping list
+    shopping_list = db.query(ShoppingList).filter(ShoppingList.id == list_id).first()
     if not shopping_list:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Shopping list not found"
-        )
+        raise HTTPException(status_code=404, detail="Shopping list not found")
 
-    # Check if user is member of the household
+    # Check household access
     if not any(h.id == shopping_list.household_id for h in current_user.households):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to view this list",
-        )
+        raise HTTPException(status_code=403, detail="Access denied")
 
-    items = (
-        db.query(models.ShoppingItem)
-        .filter(models.ShoppingItem.shopping_list_id == list_id)
-        .order_by(
-            models.ShoppingItem.is_purchased, models.ShoppingItem.created_at.desc()
+    # Create aliases for user joins
+    added_by_user = aliased(User)
+    purchased_by_user = aliased(User)
+
+    # Query items with username joins
+    items_query = (
+        db.query(ShoppingItem)
+        .outerjoin(added_by_user, ShoppingItem.added_by_id == added_by_user.id)
+        .outerjoin(
+            purchased_by_user, ShoppingItem.purchased_by_id == purchased_by_user.id
         )
+        .filter(ShoppingItem.shopping_list_id == list_id)
         .offset(skip)
         .limit(limit)
         .all()
     )
 
-    return items
+    # Convert to response with usernames
+    result = []
+    for item in items_query:
+        # Get usernames through relationships
+        added_by_username = None
+        purchased_by_username = None
+
+        if item.added_by_id:
+            added_by = db.query(User).filter(User.id == item.added_by_id).first()
+            if added_by:
+                added_by_username = added_by.username
+
+        if item.purchased_by_id:
+            purchased_by = (
+                db.query(User).filter(User.id == item.purchased_by_id).first()
+            )
+            if purchased_by:
+                purchased_by_username = purchased_by.username
+
+        item_dict = {
+            **{
+                column.key: getattr(item, column.key)
+                for column in item.__table__.columns
+            },
+            "added_by_username": added_by_username,
+            "purchased_by_username": purchased_by_username,
+        }
+        result.append(schemas.ShoppingItemInDB(**item_dict))
+
+    return result
 
 
 @router.put("/{list_id}/{item_id}", response_model=schemas.ShoppingItemInDB)

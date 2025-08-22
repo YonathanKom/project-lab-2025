@@ -54,6 +54,15 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
       _availableHouseholds = user.households;
       _selectedHouseholdId = user.households.first.id;
       _loadShoppingLists();
+    } else {
+      // Handle case when user has no households - not an error, just empty state
+      setState(() {
+        _availableHouseholds = [];
+        _selectedHouseholdId = null;
+        _shoppingLists = [];
+        _isLoading = false;
+        _errorMessage = ''; // No error message for empty state
+      });
     }
   }
 
@@ -80,6 +89,15 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
 
       // Reload shopping lists with updated household data
       _loadShoppingLists();
+    } else {
+      // Handle case when user has no households - not an error, just empty state
+      setState(() {
+        _availableHouseholds = [];
+        _selectedHouseholdId = null;
+        _shoppingLists = [];
+        _isLoading = false;
+        _errorMessage = ''; // No error message for empty state
+      });
     }
   }
 
@@ -103,6 +121,16 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
         return;
       }
 
+      // Check if we have a valid household selected
+      if (_selectedHouseholdId == null) {
+        setState(() {
+          _shoppingLists = [];
+          _isLoading = false;
+          // No error message - empty state is normal
+        });
+        return;
+      }
+
       final lists = await _shoppingListService.getShoppingLists(
         token: token,
         householdId: _selectedHouseholdId,
@@ -110,13 +138,16 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
 
       if (mounted) {
         setState(() {
-          _shoppingLists = lists;
+          _shoppingLists = lists; // Handle null response
           _isLoading = false;
+          // Clear error message on successful load (even if empty list)
+          _errorMessage = '';
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
+          _shoppingLists = []; // Ensure list is reset on error
           _errorMessage = e.toString().replaceFirst('Exception: ', '');
           _isLoading = false;
         });
@@ -252,6 +283,11 @@ class _ShoppingListsScreenState extends State<ShoppingListsScreen> {
                   )
                   .toList(),
             ),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _loadShoppingLists,
+          ),
           const ThemeToggle(),
         ],
       ),

@@ -4,6 +4,8 @@ class ShoppingList {
   final int householdId;
   final int ownerId;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final DateTime? completedAt;
   final List<ShoppingItem> items;
 
   ShoppingList({
@@ -12,6 +14,8 @@ class ShoppingList {
     required this.householdId,
     required this.ownerId,
     required this.createdAt,
+    this.updatedAt,
+    this.completedAt,
     this.items = const [],
   });
 
@@ -77,11 +81,13 @@ class ShoppingItem {
   final int id;
   final String name;
   final String? description;
-  final int quantity;
+  final double quantity;
   final bool isPurchased;
   final DateTime createdAt;
   final String? itemCode;
   final double? price;
+  final String? addedByUsername;
+  final String? purchasedByUsername;
 
   ShoppingItem({
     required this.id,
@@ -92,6 +98,8 @@ class ShoppingItem {
     required this.createdAt,
     this.itemCode,
     this.price,
+    this.addedByUsername,
+    this.purchasedByUsername,
   });
 
   factory ShoppingItem.fromJson(Map<String, dynamic> json) {
@@ -99,11 +107,13 @@ class ShoppingItem {
       id: json['id'],
       name: json['name'],
       description: json['description'],
-      quantity: json['quantity'] ?? 1,
+      quantity: (json['quantity'] as num).toDouble(),
       isPurchased: json['is_purchased'] ?? false,
       createdAt: DateTime.parse(json['created_at']),
       itemCode: json['item_code'],
       price: json['price']?.toDouble(),
+      addedByUsername: json['added_by_username'],
+      purchasedByUsername: json['purchased_by_username'],
     );
   }
 
@@ -117,6 +127,8 @@ class ShoppingItem {
       'created_at': createdAt.toIso8601String(),
       'item_code': itemCode,
       'price': price,
+      'added_by_username': addedByUsername,
+      'purchased_by_username': purchasedByUsername,
     };
   }
 }

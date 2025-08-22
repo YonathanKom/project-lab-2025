@@ -144,6 +144,25 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
                 ],
               ],
             ),
+            if (item.addedByUsername != null) ...[
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Added by ${item.addedByUsername}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
         trailing: PopupMenuButton<String>(
@@ -213,6 +232,7 @@ class _ShoppingListDetailsScreenState extends State<ShoppingListDetailsScreen> {
           : RefreshIndicator(
               onRefresh: _loadShoppingList,
               child: ListView(
+                padding: const EdgeInsets.only(bottom: 80),
                 children: [
                   if (!_isLoading)
                     PredictionsList(

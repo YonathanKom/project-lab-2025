@@ -141,10 +141,9 @@ class AuthProvider extends ChangeNotifier {
       _isRegistering = false;
 
       if (response['success']) {
-        _status = AuthStatus
-            .unauthenticated; // User needs to login after registration
-        notifyListeners();
-        return true;
+        final bool loginSuccess =
+            await login(username: username, password: password);
+        return loginSuccess;
       } else {
         _errorMessage = response['message'];
         _status = AuthStatus.error;
