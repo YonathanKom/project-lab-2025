@@ -37,3 +37,23 @@ def get_predictions(
     return prediction_service.get_predictions(
         user=current_user, shopping_list_id=shopping_list_id, limit=limit
     )
+
+
+@router.post("/generate-rules")
+def generate_association_rules(
+    current_user=Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db),
+):
+    """Generate association rules for all households (admin only or scheduled task)"""
+    # Optional: Add admin check here if you want to restrict access
+    # if not current_user.is_admin:
+    #     raise HTTPException(status_code=403, detail="Admin access required")
+
+    prediction_service = PredictionService(db)
+    result = prediction_service.generate_all_rules()
+
+    return {
+        "message": "Association rules generated successfully",
+        "households_processed": result["households_processed"],
+        "total_rules_generated": result["total_rules_generated"],
+    }

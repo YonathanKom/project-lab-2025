@@ -9,6 +9,6 @@ python-multipart==0.0.6
 alembic==1.13.1
 pytest==8.1.1
 httpx==0.27.0
-psycopg[binary]==3.2.9
-scikit-learn
-mlxtend
+psycopg2-binary==2.9.9
+mlxtend==0.23.0
+pandas==2.1.3

@@ -5,11 +5,7 @@ from enum import Enum
 
 
 class PredictionReason(str, Enum):
-    FREQUENTLY_BOUGHT = "frequently_bought"
-    HOUSEHOLD_FAVORITE = "household_favorite"
-    RECENTLY_PURCHASED = "recently_purchased"
-    SEASONAL = "seasonal"
-    COMPLEMENTARY = "complementary"
+    APRIORI_ASSOCIATION = "apriori_association"
 
 
 class ItemPrediction(BaseModel):

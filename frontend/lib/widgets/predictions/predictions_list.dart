@@ -126,6 +126,8 @@ class _PredictionsListState extends State<PredictionsList> {
     }
   }
 
+  // Update the build method in _PredictionsListState class
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -194,6 +196,8 @@ class _PredictionsListState extends State<PredictionsList> {
       );
     }
 
+    final predictions = _predictions!.predictions;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -221,22 +225,25 @@ class _PredictionsListState extends State<PredictionsList> {
             ],
           ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: _predictions!.predictions.length,
-          itemBuilder: (context, index) {
-            final prediction = _predictions!.predictions[index];
-            final isAdding = _addingItems.contains(index);
+        // All predictions in scrollable container
+        Container(
+          height: 200, // Fixed height for scrollable area
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          child: ListView.builder(
+            itemCount: predictions.length,
+            itemBuilder: (context, index) {
+              final prediction = predictions[index];
+              final isAdding = _addingItems.contains(index);
 
-            return PredictionTile(
-              prediction: prediction,
-              isAdding: isAdding,
-              onAdd: widget.shoppingList != null && !isAdding
-                  ? () => _addPredictionToList(prediction, index)
-                  : null,
-            );
-          },
+              return PredictionTile(
+                prediction: prediction,
+                isAdding: isAdding,
+                onAdd: widget.shoppingList != null && !isAdding
+                    ? () => _addPredictionToList(prediction, index)
+                    : null,
+              );
+            },
+          ),
         ),
       ],
     );

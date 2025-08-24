@@ -40,7 +40,7 @@ def create_shopping_item(
 
     # Create the item
     db_item = models.ShoppingItem(
-        **item_in.dict(), shopping_list_id=list_id, added_by_id=current_user.id
+        **item_in.model_dump(), shopping_list_id=list_id, added_by_id=current_user.id
     )
 
     db.add(db_item)

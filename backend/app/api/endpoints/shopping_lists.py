@@ -249,7 +249,7 @@ def complete_shopping_list(
                 "quantity": item.quantity,
                 "item_code": item.item_code,
                 "price": item.price,
-                "is_purchased": item.is_purchased,
+                "is_purchased": True,
             }
         )
 

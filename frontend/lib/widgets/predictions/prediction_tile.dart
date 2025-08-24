@@ -20,7 +20,6 @@ class PredictionTile extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: InkWell(
-        onTap: onAdd,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -98,26 +97,6 @@ class PredictionTile extends StatelessWidget {
                           ),
                           const SizedBox(width: 12),
                         ],
-                        Icon(
-                          Icons.shopping_basket,
-                          size: 14,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Qty: ${prediction.suggestedQuantity}',
-                          style: theme.textTheme.bodySmall,
-                        ),
-                        if (prediction.storeDisplay.isNotEmpty) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              prediction.storeDisplay,
-                              style: theme.textTheme.bodySmall,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ],
@@ -191,16 +170,9 @@ class PredictionTile extends StatelessWidget {
 
   IconData _getReasonIcon(PredictionReason reason) {
     switch (reason) {
-      case PredictionReason.frequentlyBought:
-        return Icons.trending_up;
-      case PredictionReason.householdFavorite:
-        return Icons.group;
-      case PredictionReason.recentlyPurchased:
-        return Icons.refresh;
-      case PredictionReason.seasonal:
-        return Icons.calendar_today;
-      case PredictionReason.complementary:
-        return Icons.link;
+      case PredictionReason.aprioriAssociation:
+        return Icons
+            .auto_awesome; // Or Icons.psychology or Icons.lightbulb_outline
     }
   }
 

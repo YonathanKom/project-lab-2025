@@ -1,41 +1,21 @@
 import 'package:intl/intl.dart';
 
 enum PredictionReason {
-  frequentlyBought,
-  householdFavorite,
-  recentlyPurchased,
-  seasonal,
-  complementary;
+  aprioriAssociation;
 
   String get displayName {
     switch (this) {
-      case PredictionReason.frequentlyBought:
-        return 'Frequently Bought';
-      case PredictionReason.householdFavorite:
-        return 'Household Favorite';
-      case PredictionReason.recentlyPurchased:
-        return 'Due for Replenishment';
-      case PredictionReason.seasonal:
-        return 'Seasonal Item';
-      case PredictionReason.complementary:
-        return 'Goes Well With';
+      case PredictionReason.aprioriAssociation:
+        return 'Smart Suggestion';
     }
   }
 
   static PredictionReason fromString(String value) {
     switch (value) {
-      case 'frequently_bought':
-        return PredictionReason.frequentlyBought;
-      case 'household_favorite':
-        return PredictionReason.householdFavorite;
-      case 'recently_purchased':
-        return PredictionReason.recentlyPurchased;
-      case 'seasonal':
-        return PredictionReason.seasonal;
-      case 'complementary':
-        return PredictionReason.complementary;
+      case 'apriori_association':
+        return PredictionReason.aprioriAssociation;
       default:
-        return PredictionReason.frequentlyBought;
+        return PredictionReason.aprioriAssociation;
     }
   }
 }
