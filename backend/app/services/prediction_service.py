@@ -180,9 +180,6 @@ class PredictionService:
         # Get transaction data from shopping list history
         transactions = self._get_transactions(household_ids)
 
-        if len(transactions) < 10:  # Need minimum transactions
-            return
-
         # Convert to binary matrix for mlxtend
         df = self._create_transaction_matrix(transactions)
 
@@ -430,7 +427,6 @@ class PredictionService:
                 FROM shopping_list_history
                 WHERE completed_at >= :since_date
                 GROUP BY household_id
-                HAVING COUNT(*) >= 5
             """),
             {"since_date": datetime.utcnow() - timedelta(days=90)},
         ).fetchall()

@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # BACKEND_CORS_ORIGINS is a comma-separated list of origins
     # e.g: "http://localhost,http://localhost:8080"
     BACKEND_CORS_ORIGINS: List[AnyHttpUrl] = []
+    APRIORI_GENERATION_INTERVAL_HOURS: int = 24
+    APRIORI_STARTUP_DELAY_MINUTES: int = 5
+    APRIORI_ERROR_RETRY_MINUTES: int = 60
 
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
