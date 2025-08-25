@@ -33,9 +33,5 @@ services:
       - ./backend:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Frontend service would be here
-  # For Flutter web frontend, you would typically build it and serve it with nginx
-  # or deploy it to a separate service like Firebase Hosting
-
 volumes:
   postgres_data:

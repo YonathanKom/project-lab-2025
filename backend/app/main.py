@@ -1,8 +1,18 @@
+import logging
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from app.api.api import api_router
 from app.core.config import settings
 from app.services.background_tasks import background_tasks
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.StreamHandler()  # This ensures logs go to stdout/stderr
+    ],
+)
 
 
 @asynccontextmanager

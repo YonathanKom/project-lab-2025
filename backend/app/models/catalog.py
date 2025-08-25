@@ -19,9 +19,7 @@ class Chain(Base):
     __tablename__ = "chains"
 
     id = Column(Integer, primary_key=True, index=True)
-    chain_id = Column(
-        String(50), unique=True, index=True, nullable=False
-    )  # Government chain ID
+    chain_id = Column(String(50), unique=True, index=True, nullable=False)
     name = Column(String(255), nullable=False)
     sub_chain_id = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -35,7 +33,7 @@ class Store(Base):
     __tablename__ = "stores"
 
     id = Column(Integer, primary_key=True, index=True)
-    store_id = Column(String(50), index=True, nullable=False)  # Government store ID
+    store_id = Column(String(50), index=True, nullable=False)
     chain_id = Column(String(50), ForeignKey("chains.chain_id"), nullable=False)
     name = Column(String(255), nullable=True)
     address = Column(Text, nullable=True)
@@ -64,9 +62,9 @@ class Item(Base):
     manufacturer_name = Column(String(255), nullable=True)
     manufacture_country = Column(String(10), nullable=True)
     manufacturer_description = Column(Text, nullable=True)
-    unit_qty = Column(String(50), nullable=True)  # e.g., "גרם"
+    unit_qty = Column(String(50), nullable=True)
     quantity = Column(Float, nullable=True)
-    unit_of_measure = Column(String(100), nullable=True)  # e.g., "100 גרם"
+    unit_of_measure = Column(String(100), nullable=True)
     is_weighted = Column(Boolean, default=False)
     qty_in_package = Column(Float, nullable=True)
     allow_discount = Column(Boolean, default=True)

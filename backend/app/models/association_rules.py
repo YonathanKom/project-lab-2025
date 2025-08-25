@@ -1,5 +1,3 @@
-# Add to models.py or create new file models/association_rules.py
-
 from sqlalchemy import Column, Integer, Float, DateTime, Text, Index
 from sqlalchemy.sql import func
 from app.core.database import Base
@@ -9,8 +7,8 @@ class AssociationRule(Base):
     __tablename__ = "association_rules"
 
     id = Column(Integer, primary_key=True, index=True)
-    antecedent = Column(Text, nullable=False)  # JSON array of item codes/names
-    consequent = Column(Text, nullable=False)  # JSON array of item codes/names
+    antecedent = Column(Text, nullable=False)  # JSON array of item codes
+    consequent = Column(Text, nullable=False)  # JSON array of item codes
     support = Column(Float, nullable=False)
     confidence = Column(Float, nullable=False)
     lift = Column(Float, nullable=False)

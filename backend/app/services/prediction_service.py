@@ -78,6 +78,7 @@ class PredictionService:
     ) -> List[ItemPrediction]:
         """Get predictions from stored association rules"""
         predictions = []
+        seen_item_codes = set()  # Track already processed item codes
 
         # Get item codes for existing items in basket
         existing_item_codes = set()
@@ -100,7 +101,7 @@ class PredictionService:
                 item.item_code for item in items_with_codes if item.item_code
             }
 
-        # Get recent rules for these households
+        # Get recent rules for these households - prioritize household-specific rules
         cutoff_date = datetime.utcnow() - timedelta(days=7)
 
         rules = (
@@ -115,7 +116,12 @@ class PredictionService:
                     AssociationRule.confidence >= self.min_confidence,
                 )
             )
-            .order_by(desc(AssociationRule.confidence), desc(AssociationRule.lift))
+            .order_by(
+                # Prioritize household-specific rules over global rules
+                AssociationRule.household_id.desc().nullslast(),
+                desc(AssociationRule.confidence),
+                desc(AssociationRule.lift),
+            )
             .limit(100)
             .all()
         )
@@ -127,7 +133,11 @@ class PredictionService:
             # Check if antecedent items are in current basket (by item code)
             if existing_item_codes and antecedent.issubset(existing_item_codes):
                 for item_code in consequent:
-                    if item_code not in existing_item_codes:
+                    # Skip if already processed or in existing basket
+                    if (
+                        item_code not in existing_item_codes
+                        and item_code not in seen_item_codes
+                    ):
                         # Get item details from catalog
                         from app.models import Item
 
@@ -138,6 +148,8 @@ class PredictionService:
                         )
 
                         if catalog_item:
+                            seen_item_codes.add(item_code)  # Mark as processed
+
                             # Get purchase history
                             item_info = self._get_item_info_by_code(
                                 item_code, household_ids
@@ -168,7 +180,9 @@ class PredictionService:
         # If no items in basket or not enough predictions, use most frequent items
         if len(predictions) < limit:
             frequent_predictions = self._get_frequent_items_predictions(
-                household_ids, existing_items, limit - len(predictions)
+                household_ids,
+                existing_items.union(seen_item_codes),
+                limit - len(predictions),
             )
             predictions.extend(frequent_predictions)
 
@@ -332,17 +346,26 @@ class PredictionService:
         ).fetchall()
 
         predictions = []
+        seen_item_codes = set()  # Track processed item codes for this method too
+
         for row in frequent_items:
-            # Access by column name using row._mapping or row._asdict()
-            item_name = row[1]  # or row.item_name if using row._mapping
-            if item_name.lower() not in existing_items:
+            item_code = row[0]
+            item_name = row[1]
+
+            # Skip if item is already in basket or already processed
+            if (
+                item_name.lower() not in existing_items
+                and item_code not in seen_item_codes
+            ):
+                seen_item_codes.add(item_code)
+
                 # Base confidence on frequency
                 confidence = min(0.7, 0.3 + (row[2] * 0.05))  # row[2] is purchase_count
 
                 predictions.append(
                     ItemPrediction(
-                        item_code=row[0],  # item_code
-                        item_name=row[1],  # item_name
+                        item_code=item_code,
+                        item_name=item_name,
                         confidence_score=confidence,
                         reason=PredictionReason.APRIORI_ASSOCIATION,
                         reason_detail=f"Frequently purchased item (bought {row[2]} times recently)",
@@ -356,7 +379,10 @@ class PredictionService:
                     )
                 )
 
-        return predictions[:limit]
+                if len(predictions) >= limit:
+                    break
+
+        return predictions
 
     def _get_item_info(self, item_name: str, household_ids: List[int]) -> Dict:
         """Get purchase history info for an item"""
@@ -420,7 +446,7 @@ class PredictionService:
     def generate_all_rules(self) -> Dict[str, int]:
         """Generate association rules for all households - called by API endpoint"""
 
-        # Get all households with sufficient history
+        # Get all households
         households = self.db.execute(
             text("""
                 SELECT DISTINCT household_id, COUNT(*) as history_count
