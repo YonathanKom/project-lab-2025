@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     APRIORI_STARTUP_DELAY_MINUTES: int = 60 * 24
     APRIORI_ERROR_RETRY_MINUTES: int = 60
 
+    DATA_IMPORT_INTERVAL_HOURS: int = 24
+    DATA_IMPORT_STARTUP_DELAY_MINUTES: int = 10
+    DATA_IMPORT_ERROR_RETRY_MINUTES: int = 60
+
     @validator("BACKEND_CORS_ORIGINS", pre=True)
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> Union[List[str], str]:
         if isinstance(v, str) and not v.startswith("["):

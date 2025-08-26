@@ -101,9 +101,9 @@ class BackgroundTaskService:
         return await loop.run_in_executor(None, _sync_generate)
 
     async def _periodic_data_import(self):
-        """Import data periodically (every 24 hours)"""
-        # Wait 10 minutes on startup to allow system initialization
-        startup_delay = 10 * 60  # 10 minutes
+        """Import data periodically"""
+        # Wait on startup to allow system initialization
+        startup_delay = settings.DATA_IMPORT_STARTUP_DELAY_MINUTES * 60
         await asyncio.sleep(startup_delay)
 
         while self.is_running:
@@ -112,8 +112,8 @@ class BackgroundTaskService:
                 await self._import_data()
                 logger.info("Completed scheduled data import")
 
-                # Wait 24 hours before next run
-                interval_seconds = 24 * 60 * 60  # 24 hours
+                # Wait before next run
+                interval_seconds = settings.DATA_IMPORT_INTERVAL_HOURS * 60 * 60
                 await asyncio.sleep(interval_seconds)
 
             except asyncio.CancelledError:
@@ -121,8 +121,8 @@ class BackgroundTaskService:
                 break
             except Exception as e:
                 logger.error(f"Error in periodic data import: {e}")
-                # Wait 1 hour before retrying on error
-                retry_delay = 60 * 60  # 1 hour
+                # Wait before retrying on error
+                retry_delay = settings.DATA_IMPORT_ERROR_RETRY_MINUTES * 60
                 await asyncio.sleep(retry_delay)
 
     async def _import_data(self):

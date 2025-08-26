@@ -2,12 +2,16 @@ import asyncio
 import gzip
 from io import BytesIO
 from typing import Dict, List, Optional
-import xml.etree.ElementTree as ET
 from datetime import datetime
 import sys
-
+import json
+import logging
 import requests
 from bs4 import BeautifulSoup
+from app.services.price_service import PriceService
+from app.core.database import SessionLocal
+
+logger = logging.getLogger(__name__)
 
 
 class DataImportService:
@@ -25,7 +29,6 @@ class DataImportService:
                 "password": "",
                 "file_pattern": "PriceFull7290873255550-523-*.gz",
             }
-            # Add more chains here as needed
         }
 
     async def import_all_chains(self) -> Dict[str, any]:
@@ -79,7 +82,11 @@ class DataImportService:
             "files_processed": 0,
         }
 
+        db = SessionLocal()
+
         try:
+            price_service = PriceService(db)
+
             # Step 1: Login to the website
             session = self._login_to_website(username, password)
             if not session:
@@ -89,14 +96,21 @@ class DataImportService:
             file_urls = self._get_available_files(session, chain_name)
 
             # Step 3: Process each file
-            for file_url in file_urls[:1]:  # Limit to 1 file for now
+            for file_url in file_urls:
                 try:
                     xml_content = self._download_and_extract_file(session, file_url)
+
                     if xml_content:
-                        file_result = self._process_xml_content(xml_content, chain_name)
-                        result["items_processed"] += file_result.get("items_found", 0)
-                        result["stores_processed"] += file_result.get("stores_found", 0)
+                        parsed_data = price_service.parse_xml_data(
+                            xml_content.decode("utf-8")
+                        )
+
+                        result["items_processed"] += len(parsed_data.get("items", []))
                         result["files_processed"] += 1
+
+                        logger.info(
+                            f"Parsed file {file_url}: {len(parsed_data.get('items', []))} items"
+                        )
 
                 except Exception:
                     pass  # Skip failed files
@@ -172,12 +186,108 @@ class DataImportService:
     def _get_available_files(
         self, session: requests.Session, chain_name: str
     ) -> List[str]:
-        """Get list of available files for the chain (placeholder implementation)"""
-        # This is a placeholder - in reality you'd need to scrape the file listing page
-        # For now, return a sample file URL based on the pattern from your script
-        sample_file = "https://url.publishedprices.co.il/file/d/PriceFull7290873255550-523-202508240502.gz"
+        """Get list of available files for the chain using government API"""
+        try:
+            # The API endpoint to get the list of files in JSON format
+            file_list_api = "https://url.publishedprices.co.il/file/json/dir"
 
-        return [sample_file]
+            # First, fetch the CSRF token from the file list page
+            response = session.get(self.redirect_url)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, "html.parser")
+            csrftoken_tag = soup.find("meta", attrs={"name": "csrftoken"})
+            csrftoken = csrftoken_tag.get("content") if csrftoken_tag else ""
+
+            # All chains use files starting with 'PriceFull'
+            search_pattern = "PriceFull"
+
+            # Payload based on the government API requirements
+            payload = {
+                "sEcho": "1",
+                "iColumns": "5",
+                "sColumns": ",,,,",
+                "iDisplayStart": "0",
+                "iDisplayLength": "1000",
+                "mDataProp_0": "fname",
+                "sSearch_0": "",
+                "bRegex_0": "false",
+                "bSearchable_0": "true",
+                "bSortable_0": "true",
+                "mDataProp_1": "typeLabel",
+                "sSearch_1": "",
+                "bRegex_1": "false",
+                "bSearchable_1": "true",
+                "bSortable_1": "false",
+                "mDataProp_2": "size",
+                "sSearch_2": "",
+                "bRegex_2": "false",
+                "bSearchable_2": "true",
+                "bSortable_2": "true",
+                "mDataProp_3": "ftime",
+                "sSearch_3": "",
+                "bRegex_3": "false",
+                "bSearchable_3": "true",
+                "bSortable_3": "true",
+                "mDataProp_4": "",
+                "sSearch_4": "",
+                "bRegex_4": "false",
+                "bSearchable_4": "true",
+                "bSortable_4": "false",
+                "sSearch": search_pattern,
+                "bRegex": "false",
+                "iSortingCols": "1",
+                "iSortCol_0": "3",
+                "sSortDir_0": "desc",
+                "cd": "/",
+                "csrftoken": csrftoken,
+            }
+
+            # Perform the POST request to get the file list JSON
+            response = session.post(file_list_api, data=payload)
+            response.raise_for_status()
+
+            file_list_json = response.json()
+
+            if "aaData" not in file_list_json:
+                logger.warning(
+                    f"API response format unexpected for {chain_name}, no 'aaData' key found"
+                )
+                return []
+
+            files = file_list_json["aaData"]
+            file_urls = []
+
+            file_pattern = ""
+
+            # Build full URLs for files that match the chain's specific pattern
+            for file_info in files:
+                file_name = file_info.get("fname", "")
+                if file_name and file_name.startswith("PriceFull"):
+                    # If chain has specific pattern, use it for additional filtering
+                    if not file_pattern or self._matches_pattern(
+                        file_name, file_pattern
+                    ):
+                        file_url = (
+                            f"https://url.publishedprices.co.il/file/d/{file_name}"
+                        )
+                        file_urls.append(file_url)
+
+            logger.info(f"Found {len(file_urls)} matching files for {chain_name}")
+            return file_urls
+
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                f"Network error while fetching file list for {chain_name}: {e}"
+            )
+            return []
+        except json.JSONDecodeError as e:
+            logger.error(f"Error decoding JSON response for {chain_name}: {e}")
+            return []
+        except Exception as e:
+            logger.error(
+                f"Unexpected error while fetching file list for {chain_name}: {e}"
+            )
+            return []
 
     def _download_and_extract_file(
         self, session: requests.Session, file_url: str
@@ -198,60 +308,12 @@ class DataImportService:
         except Exception:
             return None
 
-    def _process_xml_content(
-        self, xml_content: bytes, chain_name: str
-    ) -> Dict[str, any]:
-        """Process the XML content and extract items/stores (placeholder)"""
-        result = {
-            "chain_name": chain_name,
-            "file_size_bytes": len(xml_content),
-            "items_found": 0,
-            "stores_found": 0,
-            "processing_time_seconds": 0,
-        }
-
-        start_time = datetime.utcnow()
-
-        try:
-            # Parse XML
-            root = ET.fromstring(xml_content.decode("utf-8"))
-
-            # Count items and stores (placeholder parsing)
-            items = root.findall(".//Item") if root.findall(".//Item") else []
-            stores = root.findall(".//Store") if root.findall(".//Store") else []
-
-            result["items_found"] = len(items)
-            result["stores_found"] = len(stores)
-
-            # Simulate database operations with detailed logging
-            self._simulate_database_operations(items, stores, chain_name)
-
-        except ET.ParseError as e:
-            result["error"] = f"XML parsing error: {e}"
-        except Exception as e:
-            result["error"] = str(e)
-
-        end_time = datetime.utcnow()
-        result["processing_time_seconds"] = (end_time - start_time).total_seconds()
-
-        return result
-
-    def _simulate_database_operations(self, items: List, stores: List, chain_name: str):
-        """Simulate what database operations would be performed"""
-        # Placeholder for database operations
-        # In reality, this would:
-        # - Upsert chain record
-        # - Upsert store records
-        # - Upsert item records
-        # - Update price records
-        pass
-
     async def get_import_status(self) -> Dict[str, any]:
         """Get current import status (placeholder)"""
         return {
-            "is_running": False,  # Would track actual running status
-            "last_run": None,  # Would track from database/cache
-            "next_scheduled": None,  # Would calculate from schedule
+            "is_running": False,
+            "last_run": None,
+            "next_scheduled": None,
             "configured_chains": list(self.chain_configs.keys()),
-            "total_imports_today": 0,  # Would query from database
+            "total_imports_today": 0,
         }

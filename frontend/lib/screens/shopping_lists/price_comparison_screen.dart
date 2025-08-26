@@ -25,7 +25,7 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
   ShoppingListPriceComparison? _comparison;
   bool _isLoading = true;
   String? _errorMessage;
-  int? _expandedStoreIndex;
+  final Set<int> _expandedStoreIndexes = {};
   double? _userLat;
   double? _userLon;
   double? _radiusKm;
@@ -157,7 +157,7 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
   }
 
   Widget _buildStoreComparisonTile(int index, StoreComparison store) {
-    final isExpanded = _expandedStoreIndex == index;
+    final isExpanded = _expandedStoreIndexes.contains(index);
     final isCheapest = index == 0;
 
     return Card(
@@ -246,7 +246,11 @@ class _PriceComparisonScreenState extends State<PriceComparisonScreen> {
             ),
             onTap: () {
               setState(() {
-                _expandedStoreIndex = isExpanded ? null : index;
+                if (isExpanded) {
+                  _expandedStoreIndexes.remove(index);
+                } else {
+                  _expandedStoreIndexes.add(index);
+                }
               });
             },
           ),
