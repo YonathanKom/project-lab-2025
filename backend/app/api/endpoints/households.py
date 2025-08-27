@@ -1,9 +1,8 @@
 from typing import Any, List
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 
 from app.api.deps import get_current_user
 from app.core.database import get_db
@@ -272,7 +271,6 @@ def invite_to_household(
         invited_by_id=current_user.id,
         invited_user_id=invited_user.id,
         status="pending",
-        created_at=datetime.utcnow(),
     )
     db.add(invitation)
     db.commit()
@@ -347,7 +345,7 @@ def accept_invitation(
 
     # Update invitation status
     invitation.status = "accepted"
-    invitation.responded_at = datetime.utcnow()
+    invitation.responded_at = func.now()
 
     db.commit()
 
@@ -378,7 +376,7 @@ def reject_invitation(
 
     # Update invitation status
     invitation.status = "rejected"
-    invitation.responded_at = datetime.utcnow()
+    invitation.responded_at = func.now()
 
     db.commit()
 
@@ -412,7 +410,7 @@ def cancel_invitation(
 
     # Update invitation status
     invitation.status = "cancelled"
-    invitation.responded_at = datetime.utcnow()
+    invitation.responded_at = func.now()
 
     db.commit()
 

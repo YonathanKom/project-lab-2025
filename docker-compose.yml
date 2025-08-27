@@ -6,11 +6,14 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: shopping_list_db
+      TZ: Asia/Jerusalem
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -27,10 +30,14 @@ services:
       - SQLALCHEMY_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/shopping_list_db
       - SECRET_KEY=your_secret_key_here
       - BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+      - GOOGLE_MAPS_API_KEY=AIzaSyD1Sdd0slaSk5DhlTEp5mY0Lh1WnKJnEBE
+      - TZ=Asia/Jerusalem
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:

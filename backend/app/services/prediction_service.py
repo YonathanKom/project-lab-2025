@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, and_, or_, text
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import List, Optional, Dict, Set
 import json
 import math
@@ -70,7 +70,7 @@ class PredictionService:
         return PredictionsResponse(
             shopping_list_id=shopping_list_id,
             predictions=predictions[:limit],
-            generated_at=datetime.utcnow(),
+            generated_at=func.now(),
         )
 
     def _get_predictions_from_rules(
@@ -102,7 +102,7 @@ class PredictionService:
             }
 
         # Get recent rules for these households - prioritize household-specific rules
-        cutoff_date = datetime.utcnow() - timedelta(days=7)
+        cutoff_date = datetime.now(UTC) - timedelta(days=7)
 
         rules = (
             self.db.query(AssociationRule)
@@ -236,7 +236,7 @@ class PredictionService:
         """Get transaction data from shopping list history using item codes"""
 
         # Get completed shopping lists from last 90 days
-        since_date = datetime.utcnow() - timedelta(days=90)
+        since_date = datetime.now(UTC) - timedelta(days=90)
 
         history_items = (
             self.db.query(ShoppingListHistory)
@@ -317,7 +317,7 @@ class PredictionService:
     ) -> List[ItemPrediction]:
         """Get predictions based on most frequently purchased items with item codes"""
 
-        since_date = datetime.utcnow() - timedelta(days=30)
+        since_date = datetime.now(UTC) - timedelta(days=30)
 
         # Query frequent items with item codes from history
         frequent_items = self.db.execute(
@@ -454,7 +454,7 @@ class PredictionService:
                 WHERE completed_at >= :since_date
                 GROUP BY household_id
             """),
-            {"since_date": datetime.utcnow() - timedelta(days=90)},
+            {"since_date": datetime.now(UTC) - timedelta(days=90)},
         ).fetchall()
 
         total_rules = 0

@@ -10,7 +10,6 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.orm import relationship
-from datetime import datetime
 
 from app.core.database import Base
 
@@ -19,7 +18,7 @@ class ShoppingList(Base):
     __tablename__ = "shopping_lists"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, index=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     owner_id = Column(Integer, ForeignKey("users.id"))
     household_id = Column(Integer, ForeignKey("households.id"))
 
@@ -74,7 +73,7 @@ class ShoppingListHistory(Base):
     household_id = Column(Integer, ForeignKey("households.id"))
     items_data = Column(Text, nullable=False)  # JSON string of all items at completion
     completed_by_id = Column(Integer, ForeignKey("users.id"))
-    completed_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     shopping_list = relationship("ShoppingList", back_populates="history")

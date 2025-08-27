@@ -12,7 +12,6 @@ from app.schemas import (
     ShoppingListUpdate,
 )
 from app.models import ShoppingListHistory
-from datetime import datetime
 import json
 
 router = APIRouter()
@@ -260,7 +259,6 @@ def complete_shopping_list(
         household_id=shopping_list.household_id,
         items_data=json.dumps(items_data),
         completed_by_id=current_user.id,
-        completed_at=datetime.utcnow(),
     )
 
     # Remove all items from the shopping list (keep the list itself)

@@ -550,3 +550,53 @@ class PriceService:
             ),
             store_comparisons=store_comparisons,
         )
+
+    def _create_or_update_store_with_location(
+        self,
+        store_id: str,
+        chain_id: str,
+        bikoret_no: str = None,
+        name: str = None,
+        address: str = None,
+        city: str = None,
+        latitude: float = None,
+        longitude: float = None,
+    ) -> Store:
+        """Create or update store record with location information."""
+        store = (
+            self.db.query(Store)
+            .filter(and_(Store.store_id == store_id, Store.chain_id == chain_id))
+            .first()
+        )
+
+        if not store:
+            store = Store(
+                store_id=store_id,
+                chain_id=chain_id,
+                bikoret_no=bikoret_no,
+                name=name,
+                address=address,
+                city=city,
+                latitude=latitude,
+                longitude=longitude,
+            )
+            # self.db.add(store)
+            # self.db.flush()
+        else:
+            # Update existing store with new information (only if different)
+            if bikoret_no is not None:
+                store.bikoret_no = bikoret_no
+            if name is not None and store.name != name:
+                store.name = name
+            if address is not None and store.address != address:
+                store.address = address
+            if city is not None and store.city != city:
+                store.city = city
+            if latitude is not None and store.latitude != latitude:
+                store.latitude = latitude
+            if longitude is not None and store.longitude != longitude:
+                store.longitude = longitude
+
+            store.updated_at = func.now()
+
+        return store

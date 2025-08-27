@@ -1,6 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    Boolean,
+    ForeignKey,
+    func,
+)
 from sqlalchemy.orm import relationship
-from datetime import datetime
 
 from app.db.base_class import Base
 
@@ -22,8 +30,10 @@ class DataImportJob(Base):
     stores_processed = Column(Integer, default=0)
     error_message = Column(Text, nullable=True)
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     created_by = relationship("User", back_populates="data_import_jobs")
@@ -44,7 +54,7 @@ class DataImportHistory(Base):
     stores_found = Column(Integer, default=0)
     success = Column(Boolean, default=False)
     error_details = Column(Text, nullable=True)
-    processed_at = Column(DateTime, default=datetime.utcnow)
+    processed_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
     job = relationship("DataImportJob", backref="import_files")
@@ -62,8 +72,8 @@ class DataSourceConfig(Base):
     file_pattern = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     last_import_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
