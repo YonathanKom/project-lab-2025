@@ -30,7 +30,7 @@ services:
       - SQLALCHEMY_DATABASE_URL=postgresql://postgres:postgres@postgres:5432/shopping_list_db
       - SECRET_KEY=your_secret_key_here
       - BACKEND_CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
-      - GOOGLE_MAPS_API_KEY=AIzaSyD1Sdd0slaSk5DhlTEp5mY0Lh1WnKJnEBE
+      - GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY}
       - TZ=Asia/Jerusalem
     ports:
       - "8000:8000"
