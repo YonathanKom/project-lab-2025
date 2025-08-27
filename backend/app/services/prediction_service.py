@@ -70,7 +70,7 @@ class PredictionService:
         return PredictionsResponse(
             shopping_list_id=shopping_list_id,
             predictions=predictions[:limit],
-            generated_at=func.now(),
+            generated_at=datetime.now(UTC),
         )
 
     def _get_predictions_from_rules(
@@ -118,11 +118,9 @@ class PredictionService:
             )
             .order_by(
                 # Prioritize household-specific rules over global rules
-                AssociationRule.household_id.desc().nullslast(),
                 desc(AssociationRule.confidence),
                 desc(AssociationRule.lift),
             )
-            .limit(100)
             .all()
         )
 

@@ -32,7 +32,6 @@ class StoreLocationFinder:
         try:
             # Search for places
             places_result = self.gmaps.places(query=store_name, language="he")
-            print(places_result)
 
             if places_result["results"]:
                 # Get the first (most relevant) result
